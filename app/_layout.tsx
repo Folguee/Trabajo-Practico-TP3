@@ -1,10 +1,16 @@
+/** 
+FRONTEND + BACKEND INIT - Layout raíz de la app
+FRONTEND: Configura la navegación (Stack) y muestra loading.
+BACKEND INIT: Escucha cambios de autenticación del servicio backend
+              y actualiza el estado global (authStore).
+*/
+
 import "../global.css";
 import { Stack } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
 
 const queryClient = new QueryClient();
@@ -14,16 +20,13 @@ export default function RootLayout() {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   useEffect(() => {
-    try {
-      const unsub = onAuthStateChanged(auth, (user) => {
-        setAuth(user);
-        setIsReady(true);
-      });
-      return unsub;
-    } catch (error) {
-      console.warn("Firebase not configured yet");
+    // Inicializa el listener del BACKEND para detectar si hay sesión activa
+    const unsub = onAuthChange((firebaseUser) => {
+      setAuth(firebaseUser);
       setIsReady(true);
-    }
+    });
+
+    return unsub;
   }, []);
 
   if (!isReady) {
