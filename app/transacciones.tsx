@@ -12,8 +12,7 @@ import {
     ChevronDown
 } from 'lucide-react-native';
 
-// Si tuvieras un BottomNav en tu proyecto, lo podrías incluir. Aquí lo importamos asumiendo que existe.
-// import BottomNav from '../components/BottomNav';
+import BottomNav from '../components/BottomNav';
 
 export default function Transacciones() {
     return (
@@ -144,11 +143,11 @@ export default function Transacciones() {
                     </View>
                 </View>
 
-                {/* Espacio final para que no quede tapado por la barra de navegación (si la hay) */}
-                <View className="h-10" />
-            </ScrollView>
+        {/* Espacio final para que no quede tapado por la barra de navegación (si la hay) */}
+        <View className="h-10" />
+      </ScrollView>
 
-            {/* <BottomNav active="transacciones" /> */}
-        </View>
+      <BottomNav active="transacciones" />
+    </View>
     );
 }
