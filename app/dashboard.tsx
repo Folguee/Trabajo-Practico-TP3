@@ -36,7 +36,7 @@ export default function Dashboard() {
         <View className="px-6 -mt-16">
           <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20">
             <Text className="text-white text-lg font-bold mb-2">Resumen de Saldos</Text>
-            <Text className="text-emerald-400 text-4xl font-bold mb-6 text-center tracking-tight">$ 10.981</Text>
+            <Text className="text-[#10b981] text-4xl font-bold mb-6 text-center tracking-tight">$10b981</Text>
 
             <View className="flex-row items-center justify-between border-t border-slate-700 pt-4">
               <View className="flex-1 items-center border-r border-slate-700">
@@ -60,7 +60,10 @@ export default function Dashboard() {
             <Text className="text-white font-semibold text-base">Nuevo Ingreso</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="bg-[#0f172a] rounded-xl p-4 flex-row items-center justify-center gap-2">
+          <TouchableOpacity
+            className="bg-[#0f172a] rounded-xl p-4 flex-row items-center justify-center gap-2"
+            onPress={() => router.push('/nuevo-gasto')}
+          >
             <Plus size={20} color="white" />
             <Text className="text-white font-semibold text-base">Nuevo Gasto</Text>
           </TouchableOpacity>
@@ -82,7 +85,7 @@ export default function Dashboard() {
               </View>
             </View>
             <View className="items-end">
-              <Text className="text-rose-500 font-bold text-base">-$15.50</Text>
+              <Text className="text-rose-500 font-bold text-base">$15.50</Text>
               <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
             </View>
           </View>
@@ -99,7 +102,7 @@ export default function Dashboard() {
               </View>
             </View>
             <View className="items-end">
-              <Text className="text-emerald-500 font-bold text-base">+$100.00</Text>
+              <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
               <Text className="text-slate-400 text-xs mt-1">Transporte</Text>
             </View>
           </View>
@@ -116,7 +119,7 @@ export default function Dashboard() {
               </View>
             </View>
             <View className="items-end">
-              <Text className="text-rose-500 font-bold text-base">-$5.00</Text>
+              <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
               <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
             </View>
           </View>

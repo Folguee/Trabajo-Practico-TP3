@@ -16,6 +16,8 @@ export type Transaction = {
   type: 'income' | 'expense';
   amount: number;
   title: string;
+  date?: string;
+  category?: string;
   userId: string;
 };
 
