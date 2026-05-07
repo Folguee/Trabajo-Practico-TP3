@@ -30,7 +30,7 @@ export default function Transacciones() {
                 <Text className="text-slate-400 text-base">Revisa tus movimientos</Text>
             </View>
 
-            <ScrollView className="flex-1 px-6 -mt-10" showsVerticalScrollIndicator={false}>
+            <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
 
                 {/* Barra de búsqueda y filtros flotante */}
                 <View className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200 mb-6 flex-row gap-3">
@@ -70,7 +70,7 @@ export default function Transacciones() {
                         </View>
                     </View>
                     <View className="items-end">
-                        <Text className="text-rose-500 font-bold text-base">-$15.50</Text>
+                        <Text className="text-rose-500 font-bold text-base">$15.50</Text>
                         <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
                     </View>
                 </View>
@@ -87,7 +87,7 @@ export default function Transacciones() {
                         </View>
                     </View>
                     <View className="items-end">
-                        <Text className="text-emerald-500 font-bold text-base">+$100.00</Text>
+                        <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
                         <Text className="text-slate-400 text-xs mt-1">Transporte</Text>
                     </View>
                 </View>
@@ -99,13 +99,13 @@ export default function Transacciones() {
                             <Coffee size={24} color="#d97706" />
                         </View>
                         <View>
-                            <Text className="text-slate-800 font-semibold text-base">Cafetería</Text>
-                            <Text className="text-slate-400 text-xs mt-1">28/05/2024</Text>
+                            <Text className="text-slate-800 font-semibold text-base">Coffee cup</Text>
+                            <Text className="text-slate-400 text-xs mt-1">28/08/2024</Text>
                         </View>
                     </View>
                     <View className="items-end">
-                        <Text className="text-rose-500 font-bold text-base">-$5.00</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Salidas</Text>
+                        <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
+                        <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
                     </View>
                 </View>
 
@@ -143,11 +143,11 @@ export default function Transacciones() {
                     </View>
                 </View>
 
-        {/* Espacio final para que no quede tapado por la barra de navegación (si la hay) */}
-        <View className="h-10" />
-      </ScrollView>
+                {/* Espacio final para que no quede tapado por la barra de navegación (si la hay) */}
+                <View className="h-10" />
+            </ScrollView>
 
-      <BottomNav active="transacciones" />
-    </View>
+            <BottomNav active="transacciones" />
+        </View>
     );
 }
