@@ -10,12 +10,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAXQngNZX1gjb_03pWCsSsyFEubrdasVZk",
-  authDomain: "tp3---gestor-de-gastos.firebaseapp.com",
-  projectId: "tp3---gestor-de-gastos",
-  storageBucket: "tp3---gestor-de-gastos.firebasestorage.app",
-  messagingSenderId: "52896218835",
-  appId: "1:52896218835:web:4cc762c026209cf82d9e26"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
