@@ -1,12 +1,13 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
-import { Home, List, User } from 'lucide-react-native';
+import { BarChart3, Home, List, User } from 'lucide-react-native';
 
-type TabKey = 'dashboard' | 'transacciones' | 'perfil';
+type TabKey = 'dashboard' | 'transacciones' | 'stats' | 'perfil';
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof Home; route: string }> = [
     { key: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
     { key: 'transacciones', label: 'Transacciones', icon: List, route: '/transacciones' },
+    { key: 'stats', label: 'Stats', icon: BarChart3, route: '/stats' },
     { key: 'perfil', label: 'Perfil', icon: User, route: '/perfil' },
 ];
 

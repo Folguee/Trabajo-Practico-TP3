@@ -1,153 +1,280 @@
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
 import {
-    ArrowLeft,
-    ShoppingCart,
-    Car,
-    Coffee,
-    Search,
-    Filter,
-    Utensils,
-    Home,
-    MonitorSmartphone,
-    ChevronDown
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  ScrollView,
+} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import {
+  ArrowLeft,
+  CalendarDays,
+  Filter,
+  Plus,
+  Search,
 } from 'lucide-react-native';
-
 import BottomNav from '../components/BottomNav';
+import { getTransactions, Transaction } from '../services/transaction.service';
+import {
+  getCategoryConfig,
+  parseTransactionDate,
+  transactionCategories,
+} from '../constants/transactions';
+
+type TypeFilter = 'all' | 'income' | 'expense';
+type DateFilter = 'all' | 'today' | 'month';
+
+const typeFilters: Array<{ label: string; value: TypeFilter }> = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Ingresos', value: 'income' },
+  { label: 'Gastos', value: 'expense' },
+];
+
+const dateFilters: Array<{ label: string; value: DateFilter }> = [
+  { label: 'Todas', value: 'all' },
+  { label: 'Hoy', value: 'today' },
+  { label: 'Este mes', value: 'month' },
+];
+
+const formatAmount = (transaction: Transaction) => {
+  const sign = transaction.type === 'expense' ? '-' : '+';
+  return `${sign} $${transaction.amount.toFixed(2)}`;
+};
+
+const isSameDay = (first: Date, second: Date) =>
+  first.getDate() === second.getDate() &&
+  first.getMonth() === second.getMonth() &&
+  first.getFullYear() === second.getFullYear();
 
 export default function Transacciones() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState('Todas');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadTransactions = useCallback(async () => {
+    const result = await getTransactions();
+    setTransactions(result);
+    setIsLoading(false);
+    setIsRefreshing(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
+  );
+
+  const filteredTransactions = useMemo(() => {
+    const today = new Date();
+
+    return transactions.filter((transaction) => {
+      const normalizedSearch = search.trim().toLowerCase();
+      const matchesSearch =
+        !normalizedSearch ||
+        transaction.title.toLowerCase().includes(normalizedSearch) ||
+        transaction.category?.toLowerCase().includes(normalizedSearch) ||
+        transaction.note?.toLowerCase().includes(normalizedSearch);
+      const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+      const matchesCategory =
+        categoryFilter === 'Todas' || transaction.category === categoryFilter;
+      const transactionDate = parseTransactionDate(transaction.date);
+      const matchesDate =
+        dateFilter === 'all' ||
+        (dateFilter === 'today' &&
+          transactionDate !== null &&
+          isSameDay(transactionDate, today)) ||
+        (dateFilter === 'month' &&
+          transactionDate !== null &&
+          transactionDate.getMonth() === today.getMonth() &&
+          transactionDate.getFullYear() === today.getFullYear());
+
+      return matchesSearch && matchesType && matchesCategory && matchesDate;
+    });
+  }, [categoryFilter, dateFilter, search, transactions, typeFilter]);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadTransactions();
+  };
+
+  const renderTransaction = ({ item }: { item: Transaction }) => {
+    const category = getCategoryConfig(item.category);
+    const Icon = category.icon;
+    const isExpense = item.type === 'expense';
+
     return (
-        <View className="flex-1 bg-gray-50">
-
-            {/* Header Background */}
-            <View className="bg-[#0f172a] pt-14 pb-20 px-6 rounded-b-3xl">
-                <View className="flex-row justify-between items-center mb-6">
-                    {/* Opcional: botón atrás o menú */}
-                    <TouchableOpacity>
-                        <ArrowLeft size={24} color="white" />
-                    </TouchableOpacity>
-                </View>
-                <Text className="text-white text-3xl font-bold mb-2">Transacciones</Text>
-                <Text className="text-slate-400 text-base">Revisa tus movimientos</Text>
-            </View>
-
-            <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
-
-                {/* Barra de búsqueda y filtros flotante */}
-                <View className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200 mb-6 flex-row gap-3">
-                    <View className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex-row items-center gap-2">
-                        <Search size={20} color="#94a3b8" />
-                        <TextInput
-                            placeholder="Buscar transacción..."
-                            placeholderTextColor="#94a3b8"
-                            className="flex-1 text-slate-800 text-base"
-                        />
-                    </View>
-                    <TouchableOpacity className="bg-[#0f172a] w-12 h-12 rounded-xl items-center justify-center">
-                        <Filter size={20} color="white" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Fechas o separadores (ej. Mayo 2024) */}
-                <View className="flex-row justify-between items-center mb-4 mt-2">
-                    <Text className="text-slate-800 text-lg font-bold">Mayo 2024</Text>
-                    <TouchableOpacity className="flex-row items-center gap-1 bg-slate-200/50 px-3 py-1.5 rounded-full">
-                        <Text className="text-slate-600 font-medium text-sm">Este Mes</Text>
-                        <ChevronDown size={16} color="#475569" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Lista de Transacciones */}
-
-                {/* Transaction 1 */}
-                <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200">
-                    <View className="flex-row items-center gap-4">
-                        <View className="bg-rose-100 w-12 h-12 rounded-full items-center justify-center">
-                            <ShoppingCart size={24} color="#f43f5e" />
-                        </View>
-                        <View>
-                            <Text className="text-slate-800 font-semibold text-base">Supermercado</Text>
-                            <Text className="text-slate-400 text-xs mt-1">28/05/2024</Text>
-                        </View>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-rose-500 font-bold text-base">$15.50</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
-                    </View>
-                </View>
-
-                {/* Transaction 2 */}
-                <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200">
-                    <View className="flex-row items-center gap-4">
-                        <View className="bg-emerald-100 w-12 h-12 rounded-full items-center justify-center">
-                            <Car size={24} color="#10b981" />
-                        </View>
-                        <View>
-                            <Text className="text-slate-800 font-semibold text-base">Taxi al centro</Text>
-                            <Text className="text-slate-400 text-xs mt-1">29/05/2024</Text>
-                        </View>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Transporte</Text>
-                    </View>
-                </View>
-
-                {/* Transaction 3 */}
-                <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200">
-                    <View className="flex-row items-center gap-4">
-                        <View className="bg-amber-100 w-12 h-12 rounded-full items-center justify-center">
-                            <Coffee size={24} color="#d97706" />
-                        </View>
-                        <View>
-                            <Text className="text-slate-800 font-semibold text-base">Coffee cup</Text>
-                            <Text className="text-slate-400 text-xs mt-1">28/08/2024</Text>
-                        </View>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-[#10b981] font-bold text-base">$100.00</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Alimentación</Text>
-                    </View>
-                </View>
-
-                {/* Transaction 4 */}
-                <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200">
-                    <View className="flex-row items-center gap-4">
-                        <View className="bg-blue-100 w-12 h-12 rounded-full items-center justify-center">
-                            <Home size={24} color="#2563eb" />
-                        </View>
-                        <View>
-                            <Text className="text-slate-800 font-semibold text-base">Alquiler</Text>
-                            <Text className="text-slate-400 text-xs mt-1">01/05/2024</Text>
-                        </View>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-rose-500 font-bold text-base">-$400.00</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Hogar</Text>
-                    </View>
-                </View>
-
-                {/* Transaction 5 */}
-                <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200">
-                    <View className="flex-row items-center gap-4">
-                        <View className="bg-purple-100 w-12 h-12 rounded-full items-center justify-center">
-                            <MonitorSmartphone size={24} color="#9333ea" />
-                        </View>
-                        <View>
-                            <Text className="text-slate-800 font-semibold text-base">Internet</Text>
-                            <Text className="text-slate-400 text-xs mt-1">10/05/2024</Text>
-                        </View>
-                    </View>
-                    <View className="items-end">
-                        <Text className="text-rose-500 font-bold text-base">-$30.00</Text>
-                        <Text className="text-slate-400 text-xs mt-1">Servicios</Text>
-                    </View>
-                </View>
-
-                {/* Espacio final para que no quede tapado por la barra de navegación (si la hay) */}
-                <View className="h-10" />
-            </ScrollView>
-
-            <BottomNav active="transacciones" />
+      <TouchableOpacity
+        className="bg-white rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200"
+        onPress={() =>
+          item.id &&
+          router.push({ pathname: '/transaction-detail', params: { id: item.id } })
+        }
+      >
+        <View className="flex-row items-center gap-4 flex-1">
+          <View className={`${category.bgColor} w-12 h-12 rounded-full items-center justify-center`}>
+            <Icon size={24} color={category.iconColor} />
+          </View>
+          <View className="flex-1">
+            <Text className="text-slate-800 font-semibold text-base" numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text className="text-slate-400 text-xs mt-1">{item.date || 'Sin fecha'}</Text>
+          </View>
         </View>
+        <View className="items-end ml-3">
+          <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-base`}>
+            {formatAmount(item)}
+          </Text>
+          <Text className="text-slate-400 text-xs mt-1">{item.category || 'Sin categoria'}</Text>
+        </View>
+      </TouchableOpacity>
     );
+  };
+
+  const ListHeader = (
+    <View>
+      <View className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200 mb-6 flex-row gap-3">
+        <View className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex-row items-center gap-2">
+          <Search size={20} color="#94a3b8" />
+          <TextInput
+            placeholder="Buscar movimiento..."
+            placeholderTextColor="#94a3b8"
+            className="flex-1 text-slate-800 text-base"
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+        <TouchableOpacity
+          className="bg-[#0f172a] w-12 h-12 rounded-xl items-center justify-center"
+          onPress={() => router.push('/transaction-form')}
+        >
+          <Plus size={20} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      <View className="flex-row items-center gap-2 mb-3">
+        <Filter size={18} color="#0f172a" />
+        <Text className="text-slate-800 text-lg font-bold">Filtros</Text>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+        <View className="flex-row gap-2">
+          {typeFilters.map((filter) => {
+            const isActive = typeFilter === filter.value;
+
+            return (
+              <TouchableOpacity
+                key={filter.value}
+                className={`px-4 py-2 rounded-full ${isActive ? 'bg-slate-950' : 'bg-slate-200/60'}`}
+                onPress={() => setTypeFilter(filter.value)}
+              >
+                <Text className={`font-semibold ${isActive ? 'text-white' : 'text-slate-600'}`}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+        <View className="flex-row gap-2">
+          {['Todas', ...transactionCategories.map((category) => category.name)].map((category) => {
+            const isActive = categoryFilter === category;
+
+            return (
+              <TouchableOpacity
+                key={category}
+                className={`px-4 py-2 rounded-full ${isActive ? 'bg-slate-950' : 'bg-slate-200/60'}`}
+                onPress={() => setCategoryFilter(category)}
+              >
+                <Text className={`font-semibold ${isActive ? 'text-white' : 'text-slate-600'}`}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
+        <View className="flex-row gap-2">
+          {dateFilters.map((filter) => {
+            const isActive = dateFilter === filter.value;
+
+            return (
+              <TouchableOpacity
+                key={filter.value}
+                className={`px-4 py-2 rounded-full flex-row items-center gap-2 ${
+                  isActive ? 'bg-slate-950' : 'bg-slate-200/60'
+                }`}
+                onPress={() => setDateFilter(filter.value)}
+              >
+                <CalendarDays size={16} color={isActive ? 'white' : '#475569'} />
+                <Text className={`font-semibold ${isActive ? 'text-white' : 'text-slate-600'}`}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-slate-800 text-lg font-bold">Movimientos</Text>
+        <Text className="text-slate-400 font-semibold">{filteredTransactions.length}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <View className="flex-1 bg-gray-50">
+      <View className="bg-[#0f172a] pt-14 pb-20 px-6 rounded-b-3xl">
+        <TouchableOpacity className="mb-6" onPress={() => router.back()}>
+          <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="text-white text-3xl font-bold mb-2">Transacciones</Text>
+        <Text className="text-slate-400 text-base">Revisa tus movimientos</Text>
+      </View>
+
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#0f172a" />
+        </View>
+      ) : (
+        <FlatList
+          className="flex-1 px-6 pt-6"
+          data={filteredTransactions}
+          keyExtractor={(item, index) => item.id || `${item.title}-${index}`}
+          renderItem={renderTransaction}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={
+            <View className="bg-white rounded-2xl p-6 shadow-sm shadow-slate-200">
+              <Text className="text-slate-800 font-semibold text-lg mb-2">
+                Sin movimientos
+              </Text>
+              <Text className="text-slate-500">
+                No hay transacciones para los filtros seleccionados.
+              </Text>
+            </View>
+          }
+          ListFooterComponent={<View className="h-10" />}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      <BottomNav active="transacciones" />
+    </View>
+  );
 }

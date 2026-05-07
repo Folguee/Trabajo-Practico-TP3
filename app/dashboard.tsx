@@ -55,14 +55,17 @@ export default function Dashboard() {
         <View className="px-6 mt-8">
           <Text className="text-slate-800 text-lg font-bold mb-4">Acciones Rápidas</Text>
 
-          <TouchableOpacity className="bg-[#0f172a] rounded-xl p-4 flex-row items-center justify-center gap-2 mb-3">
+          <TouchableOpacity
+            className="bg-[#0f172a] rounded-xl p-4 flex-row items-center justify-center gap-2 mb-3"
+            onPress={() => router.push({ pathname: '/transaction-form', params: { type: 'income' } })}
+          >
             <Plus size={20} color="white" />
             <Text className="text-white font-semibold text-base">Nuevo Ingreso</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             className="bg-[#0f172a] rounded-xl p-4 flex-row items-center justify-center gap-2"
-            onPress={() => router.push('/nuevo-gasto')}
+            onPress={() => router.push({ pathname: '/transaction-form', params: { type: 'expense' } })}
           >
             <Plus size={20} color="white" />
             <Text className="text-white font-semibold text-base">Nuevo Gasto</Text>
