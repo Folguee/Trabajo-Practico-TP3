@@ -141,8 +141,8 @@ export default function TransactionFormScreen() {
         await addTransaction(payload);
         router.replace('/transacciones');
       }
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar el movimiento.');
+    } catch (error) {
+      Alert.alert('Error', `No se pudo guardar el movimiento: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setIsSaving(false);
     }

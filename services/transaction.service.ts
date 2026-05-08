@@ -65,6 +65,15 @@ export const updateTransaction = async (
   await updateDoc(doc(db, 'transactions', id), transaction);
 };
 
-export const deleteTransaction = async (id: string) => {
-  await deleteDoc(doc(db, 'transactions', id));
+export const deleteTransaction = async (id: string): Promise<void> => {
+  if (!id || id.trim() === '') {
+    throw new Error('ID de transacción inválido o vacío');
+  }
+
+  try {
+    await deleteDoc(doc(db, 'transactions', id));
+  } catch (error) {
+    console.error('[deleteTransaction] Error:', error);
+    throw error;
+  }
 };

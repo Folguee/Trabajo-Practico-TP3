@@ -52,27 +52,59 @@ export default function TransactionDetailScreen() {
     }, [loadTransaction])
   );
 
-  const handleDelete = () => {
-    if (!id) return;
+  const handleDelete = async () => {
+    if (!id) {
+      Alert.alert('Error', 'No se pudo identificar el movimiento. ID inválido.');
+      return;
+    }
 
-    Alert.alert('Eliminar movimiento', 'Esta accion no se puede deshacer.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setIsDeleting(true);
-            await deleteTransaction(id);
-            router.replace('/transacciones');
-          } catch {
-            Alert.alert('Error', 'No se pudo eliminar el movimiento.');
-          } finally {
-            setIsDeleting(false);
-          }
-        },
-      },
-    ]);
+    if (isDeleting) {
+      return;
+    }
+
+    // Usar window.confirm en web, Alert.alert en mobile
+    const isWeb = typeof window !== 'undefined';
+    const confirmed = isWeb 
+      ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
+      : await new Promise<boolean>(resolve => {
+          Alert.alert(
+            'Eliminar movimiento',
+            'Esta acción no se puede deshacer.',
+            [
+              { 
+                text: 'Cancelar', 
+                style: 'cancel',
+                onPress: () => resolve(false)
+              },
+              {
+                text: 'Eliminar',
+                style: 'destructive',
+                onPress: () => resolve(true),
+              },
+            ],
+            { cancelable: false }
+          );
+        });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteTransaction(id);
+      
+      // Esperar un poco antes de navegar
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      router.push('/dashboard');
+    } catch (error) {
+      setIsDeleting(false);
+      Alert.alert(
+        'Error al eliminar',
+        `${error instanceof Error ? error.message : 'Error desconocido'}`
+      );
+    }
   };
 
   if (isLoading) {
@@ -112,7 +144,11 @@ export default function TransactionDetailScreen() {
               >
                 <Pencil size={23} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} disabled={isDeleting}>
+              <TouchableOpacity
+                onPress={() => handleDelete()}
+                disabled={isDeleting}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 {isDeleting ? (
                   <ActivityIndicator color="white" />
                 ) : (
