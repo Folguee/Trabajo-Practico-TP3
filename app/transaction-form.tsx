@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   ScrollView,
   Text,
@@ -29,6 +30,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import {
   formatDateInput,
+  parseTransactionDate,
   transactionCategories,
 } from '../constants/transactions';
 
@@ -55,6 +57,8 @@ export default function TransactionFormScreen() {
   const [photoUri, setPhotoUri] = useState('');
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSaving, setIsSaving] = useState(false);
+  const [dateError, setDateError] = useState('');
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const loadTransaction = useCallback(async () => {
     if (!id) return;
@@ -102,6 +106,33 @@ export default function TransactionFormScreen() {
     }
   };
 
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleDateChange = (value: string) => {
+    const formatted = formatDateInput(value);
+    setDate(formatted);
+
+    if (formatted.length === 10) {
+      if (!parseTransactionDate(formatted)) {
+        setDateError('Fecha invalida');
+        triggerShake();
+      } else {
+        setDateError('');
+      }
+    } else {
+      setDateError('');
+    }
+  };
+
   const handleSave = async () => {
     const parsedAmount = Number(amount.replace(',', '.'));
 
@@ -112,6 +143,11 @@ export default function TransactionFormScreen() {
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       Alert.alert('Monto invalido', 'Ingresa un monto mayor a cero.');
+      return;
+    }
+
+    if (!parseTransactionDate(date.trim())) {
+      Alert.alert('Fecha invalida', 'Ingresa una fecha valida en formato DD/MM/AAAA.');
       return;
     }
 
@@ -231,18 +267,29 @@ export default function TransactionFormScreen() {
 
           <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200">
             <View className="flex-row items-center mb-2">
-              <Calendar size={20} color="#0f172a" />
-              <Text className="text-slate-800 font-semibold text-base ml-2">Fecha</Text>
+              <Calendar size={20} color={dateError ? '#ef4444' : '#0f172a'} />
+              <Text className={`font-semibold text-base ml-2 ${dateError ? 'text-rose-500' : 'text-slate-800'}`}>
+                Fecha
+              </Text>
             </View>
-            <TextInput
-              className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-slate-800 text-base"
-              keyboardType="number-pad"
-              maxLength={10}
-              placeholder="DD/MM/AAAA"
-              placeholderTextColor="#94a3b8"
-              value={date}
-              onChangeText={(value) => setDate(formatDateInput(value))}
-            />
+            <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+              <TextInput
+                className={`bg-slate-50 border rounded-xl px-4 py-3 text-slate-800 text-base ${
+                  dateError ? 'border-rose-400' : 'border-slate-100'
+                }`}
+                keyboardType="number-pad"
+                maxLength={10}
+                placeholder="DD/MM/AAAA"
+                placeholderTextColor="#94a3b8"
+                value={date}
+                onChangeText={handleDateChange}
+              />
+            </Animated.View>
+            {dateError ? (
+              <Animated.Text className="text-rose-500 text-sm mt-1 ml-1">
+                {dateError}
+              </Animated.Text>
+            ) : null}
           </View>
 
           <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200">
