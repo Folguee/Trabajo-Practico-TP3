@@ -9,6 +9,7 @@ import { UserPlus, Eye, EyeOff } from 'lucide-react-native';
 
 const registerSchema = z.object({
   name: z.string().min(5, 'El nombre debe tener al menos 5 caracteres'),
+  telefono: z.string().min(8, 'El teléfono es obligatorio'),
   email: z.string().email('Ingrese un email valido'),
   password: z
     .string()
@@ -30,12 +31,12 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema) as any,
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+    defaultValues: { name: '', telefono: '', email: '', password: '', confirmPassword: '' },
   });
 
   const onSubmit = async (data: RegisterForm) => {
     try {
-      await registerUser(data.name, data.email, data.password);
+      await registerUser(data.name, data.email, data.password, data.telefono);
       router.replace('/dashboard');
     } catch (error: any) {
       let message = 'Error al crear la cuenta';
@@ -86,6 +87,26 @@ export default function Register() {
                 )}
               />
               {errors.name && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.name.message}</Text>}
+            </View>
+
+            <View className="w-full mb-4">
+              <Text className="text-slate-700 dark:text-gray-300 font-medium mb-2 ml-1">Teléfono</Text>
+              <Controller
+                control={control}
+                name="telefono"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    className={`bg-slate-50 dark:bg-gray-700 border rounded-xl px-4 py-3 text-base text-slate-800 dark:text-gray-100 ${errors.telefono ? 'border-rose-500' : 'border-slate-200 dark:border-gray-600'}`}
+                    keyboardType="phone-pad"
+                    placeholder="Tu número de celular"
+                    placeholderTextColor="#94a3b8"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                  />
+                )}
+              />
+              {errors.telefono && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.telefono.message}</Text>}
             </View>
 
             <View className="w-full mb-4">

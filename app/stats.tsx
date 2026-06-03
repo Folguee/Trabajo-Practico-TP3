@@ -25,8 +25,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import { getTransactions, Transaction } from '../services/transaction.service';
 import { getCategoryConfig, transactionCategories } from '../constants/transactions';
 import { useBudgetStore } from '../store/budgetStore';
-
-const PIE_COLORS = ['#f43f5e', '#10b981', '#2563eb', '#9333ea', '#d97706', '#dc2626', '#059669', '#0ea5e9'];
+import { calculateStats } from '../utils/stats';
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -50,56 +49,10 @@ export default function StatsScreen() {
   );
 
   const stats = useMemo(() => {
-    const income = transactions
-      .filter((item) => item.type === 'income')
-      .reduce((sum, item) => sum + item.amount, 0);
-    const expenses = transactions
-      .filter((item) => item.type === 'expense')
-      .reduce((sum, item) => sum + item.amount, 0);
-    const expensesByCategory = transactions
-      .filter((item) => item.type === 'expense')
-      .reduce<Record<string, number>>((acc, item) => {
-        const category = item.category || 'Sin categoria';
-        acc[category] = (acc[category] || 0) + item.amount;
-        return acc;
-      }, {});
-
-    const pieData = Object.entries(expensesByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, value], i) => ({
-        name,
-        value: Math.round(value * 100) / 100,
-        color: PIE_COLORS[i % PIE_COLORS.length],
-        legendFontColor: '#334155',
-        legendFontSize: 13,
-      }));
-
-    const balancePieData = income > 0
-      ? [
-          {
-            name: 'Gastado',
-            value: Math.round(Math.min(expenses, income) * 100) / 100,
-            color: '#f43f5e',
-            legendFontColor: '#334155',
-            legendFontSize: 13,
-          },
-          {
-            name: 'Disponible',
-            value: Math.round(Math.max(income - expenses, 0) * 100) / 100,
-            color: '#10b981',
-            legendFontColor: '#334155',
-            legendFontSize: 13,
-          },
-        ]
-      : [];
+    const computed = calculateStats(transactions);
 
     return {
-      income,
-      expenses,
-      balance: income - expenses,
-      expensesByCategory: Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]),
-      pieData,
-      balancePieData,
+      ...computed,
       recentTransactions: transactions.slice(0, 5),
     };
   }, [transactions]);
@@ -337,8 +290,8 @@ export default function StatsScreen() {
                       <Text className="text-slate-800 dark:text-gray-100 font-semibold">{transaction.title}</Text>
                       <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{transaction.date || 'Sin fecha'}</Text>
                     </View>
-                    <Text className={`${transaction.type === 'expense' ? 'text-rose-500' : 'text-emerald-500'} font-bold`}>
-                      {transaction.type === 'expense' ? '-' : '+'} ${transaction.amount.toFixed(2)}
+                    <Text className={`${transaction.type === 'expense' || transaction.type === 'shared' ? 'text-rose-500' : 'text-emerald-500'} font-bold`}>
+                      {transaction.type === 'expense' || transaction.type === 'shared' ? '-' : '+'} ${transaction.amount.toFixed(2)}
                     </Text>
                   </TouchableOpacity>
                 ))

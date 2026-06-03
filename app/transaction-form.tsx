@@ -27,34 +27,54 @@ import {
   Transaction,
   updateTransaction,
 } from '../services/transaction.service';
+import { db } from '../services/firebase';
 import { useAuthStore } from '../store/authStore';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import {
   formatDateInput,
   parseTransactionDate,
   transactionCategories,
 } from '../constants/transactions';
 
-type TransactionType = 'income' | 'expense';
+type TransactionType = 'income' | 'expense' | 'shared';
+
+type SharedUser = {
+  uid: string;
+  docId: string;
+  phone: string;
+  name: string;
+  email: string;
+  saldo?: number;
+  gastos?: number;
+};
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
+
 
 export default function TransactionFormScreen() {
   const params = useLocalSearchParams();
   const user = useAuthStore((state) => state.user);
   const id = getParamValue(params.id);
-  const initialType = getParamValue(params.type) === 'income' ? 'income' : 'expense';
+  const initialType = getParamValue(params.type);
+  const normalizedInitialType: TransactionType =
+    initialType === 'income' ? 'income' : initialType === 'shared' ? 'shared' : 'expense';
   const isEditing = Boolean(id);
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [type, setType] = useState<TransactionType>(initialType);
+  const [type, setType] = useState<TransactionType>(normalizedInitialType);
   const [category, setCategory] = useState(
     initialType === 'income' ? 'Ingresos' : transactionCategories[0].name
   );
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [photoUri, setPhotoUri] = useState('');
+  const [sharedPhone, setSharedPhone] = useState('');
+  const [sharedCandidate, setSharedCandidate] = useState<SharedUser | null>(null);
+  const [sharedUser, setSharedUser] = useState<SharedUser | null>(null);
+  const [myShare, setMyShare] = useState('');
+  const [hasTouchedMyShare, setHasTouchedMyShare] = useState(false);
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSaving, setIsSaving] = useState(false);
   const [dateError, setDateError] = useState('');
@@ -87,6 +107,47 @@ export default function TransactionFormScreen() {
   const handleTypeChange = (nextType: TransactionType) => {
     setType(nextType);
     setCategory(nextType === 'income' ? 'Ingresos' : 'Alimentacion');
+  };
+
+  const handleSearchSharedUser = async () => {
+    const normalizedPhone = sharedPhone.trim().toString();
+
+    if (!normalizedPhone) {
+      Alert.alert('Telefono requerido', 'Ingresa un telefono para buscar al contacto.');
+      return;
+    }
+
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('telefono', '==', normalizedPhone));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        setSharedCandidate(null);
+        Alert.alert('Usuario no encontrado', 'No hay un usuario registrado con ese numero.');
+        return;
+      }
+
+      const userDoc = snapshot.docs[0];
+      const data = userDoc.data();
+
+      setSharedCandidate({
+        uid: String(data.uid ?? userDoc.id),
+        docId: String(userDoc.id),
+        phone: String(data.telefono ?? ''),
+        name: String(data.nombre ?? 'Sin nombre'),
+        email: String(data.email ?? 'Sin email'),
+        saldo: Number(data.saldo ?? 0),
+        gastos: Number(data.gastos ?? 0),
+      });
+    } catch (error) {
+      Alert.alert('Error de búsqueda', `No se pudo consultar Firestore: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+  };
+
+  const handleConfirmSharedUser = () => {
+    setSharedUser(sharedCandidate);
+    setSharedCandidate(null);
   };
 
   const handlePickPhoto = async () => {
@@ -133,9 +194,24 @@ export default function TransactionFormScreen() {
     }
   };
 
-  const handleSave = async () => {
-    const parsedAmount = Number(amount.replace(',', '.'));
+  const parsedAmount = Number(amount.replace(',', '.'));
+  const parsedMyShare = Number(myShare.replace(',', '.'));
+  const friendShareValue = Number.isFinite(parsedAmount) ? parsedAmount - parsedMyShare : 0;
 
+  useEffect(() => {
+    if (type !== 'shared') return;
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setMyShare('0.00');
+      return;
+    }
+
+    if (!hasTouchedMyShare) {
+      setMyShare((parsedAmount / 2).toFixed(2));
+    }
+  }, [amount, hasTouchedMyShare, parsedAmount, type]);
+
+  const handleSave = async () => {
     if (!title.trim() || !amount.trim() || !category || !date.trim()) {
       Alert.alert('Datos incompletos', 'Completa titulo, monto, tipo, categoria y fecha.');
       return;
@@ -157,6 +233,42 @@ export default function TransactionFormScreen() {
       return;
     }
 
+    const detalleCompartido = type === 'shared' && sharedUser
+      ? {
+          total: parsedAmount,
+          pagadoPorMi: parsedMyShare,
+          pagadoPorAmigo: friendShareValue,
+          amigo: {
+            uid: sharedUser.uid,
+            nombre: sharedUser.name,
+            telefono: sharedUser.phone,
+            email: sharedUser.email,
+          },
+        }
+      : undefined;
+
+    if (type === 'shared') {
+      if (!Number.isFinite(parsedMyShare) || parsedMyShare <= 0) {
+        Alert.alert('Mi parte invalida', 'Ingresa un monto valido para tu parte.');
+        return;
+      }
+
+      if (friendShareValue < 0) {
+        Alert.alert('Distribucion invalida', 'Tu parte no puede superar el monto total.');
+        return;
+      }
+
+      if (Math.abs(parsedAmount - (parsedMyShare + friendShareValue)) > 0.0001) {
+        Alert.alert('Distribucion invalida', 'La suma de las partes debe coincidir con el monto total.');
+        return;
+      }
+
+      if (!sharedUser) {
+        Alert.alert('Usuario compartido requerido', 'Busca primero al usuario con el que compartes el gasto.');
+        return;
+      }
+    }
+
     const payload: Omit<Transaction, 'id'> = {
       title: title.trim(),
       amount: parsedAmount,
@@ -166,6 +278,25 @@ export default function TransactionFormScreen() {
       note: note.trim(),
       photoUri,
       userId: user.uid,
+      status: 'agregado',
+      ...(type === 'shared'
+        ? {
+            creatorUid: user.uid,
+            creatorNombre: user.displayName || 'Yo',
+            amigoUid: sharedUser?.uid || '',
+            amigoNombre: sharedUser?.name || 'Amigo',
+            parteCreador: parsedMyShare,
+            parteAmigo: friendShareValue,
+            sharedWith: {
+              uid: sharedUser?.uid || '',
+              phone: sharedUser?.phone || '',
+              name: sharedUser?.name || '',
+              amount: friendShareValue,
+            },
+            detalleCompartido,
+            myShare: parsedMyShare,
+          }
+        : {}),
     };
 
     try {
@@ -173,6 +304,59 @@ export default function TransactionFormScreen() {
       if (id) {
         await updateTransaction(id, payload);
         router.replace({ pathname: '/transaction-detail', params: { id } });
+      } else if (type === 'shared' && sharedUser) {
+        await addTransaction({
+          ...payload,
+          amount: -parsedMyShare,
+          userId: user.uid,
+          creatorUid: user.uid,
+          creatorNombre: user.displayName || 'Yo',
+          amigoUid: sharedUser.uid,
+          amigoNombre: sharedUser.name,
+          parteCreador: parsedMyShare,
+          parteAmigo: friendShareValue,
+          sharedWith: {
+            uid: sharedUser.uid,
+            phone: sharedUser.phone,
+            name: sharedUser.name,
+            amount: friendShareValue,
+          },
+          detalleCompartido,
+          myShare: parsedMyShare,
+        });
+
+        await addTransaction({
+          ...payload,
+          amount: -friendShareValue,
+          userId: sharedUser.uid,
+          creatorUid: user.uid,
+          creatorNombre: user.displayName || 'Yo',
+          amigoUid: sharedUser.uid,
+          amigoNombre: sharedUser.name,
+          parteCreador: parsedMyShare,
+          parteAmigo: friendShareValue,
+          sharedWith: {
+            uid: user.uid,
+            phone: user.email || '',
+            name: user.displayName || 'Usuario compartido',
+            amount: parsedMyShare,
+          },
+          detalleCompartido,
+          myShare: friendShareValue,
+        });
+
+        try {
+          const friendBalance = Number(sharedUser.saldo ?? 0);
+          const friendExpenses = Number(sharedUser.gastos ?? 0);
+          await updateDoc(doc(db, 'users', sharedUser.docId), {
+            saldo: friendBalance - friendShareValue,
+            gastos: friendExpenses + friendShareValue,
+          });
+        } catch (updateError) {
+          console.warn('No se pudo actualizar saldo del amigo:', updateError);
+        }
+
+        router.replace('/transacciones');
       } else {
         await addTransaction(payload);
         router.replace('/transacciones');
@@ -209,10 +393,10 @@ export default function TransactionFormScreen() {
           <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20">
             <Text className="text-white text-lg font-bold mb-2">Monto</Text>
             <View className="flex-row items-center justify-center">
-              <DollarSign size={32} color={type === 'expense' ? '#fb7185' : '#34d399'} />
+              <DollarSign size={32} color={type === 'expense' || type === 'shared' ? '#fb7185' : '#34d399'} />
               <TextInput
                 className={`text-4xl font-bold tracking-tight min-w-[140px] ${
-                  type === 'expense' ? 'text-rose-400' : 'text-emerald-400'
+                  type === 'expense' || type === 'shared' ? 'text-rose-400' : 'text-emerald-400'
                 }`}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
@@ -230,9 +414,9 @@ export default function TransactionFormScreen() {
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base mb-2">Tipo</Text>
             <View className="flex-row gap-2">
-              {(['expense', 'income'] as TransactionType[]).map((item) => {
+              {(['expense', 'income', 'shared'] as TransactionType[]).map((item) => {
                 const isActive = type === item;
-                const label = item === 'expense' ? 'Gasto' : 'Ingreso';
+                const label = item === 'expense' ? 'Gasto' : item === 'income' ? 'Ingreso' : 'Compartido';
 
                 return (
                   <TouchableOpacity
@@ -264,6 +448,77 @@ export default function TransactionFormScreen() {
               onChangeText={setTitle}
             />
           </View>
+
+          {type === 'shared' ? (
+            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
+              <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base mb-3">Gasto Compartido</Text>
+
+              <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-4 mb-3 border border-slate-100 dark:border-gray-600">
+                <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Buscar por telefono</Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    className="flex-1 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl px-4 py-3 text-slate-800 dark:text-gray-100"
+                    keyboardType="phone-pad"
+                    placeholder="Ej: 1122334455"
+                    placeholderTextColor="#94a3b8"
+                    value={sharedPhone}
+                    onChangeText={setSharedPhone}
+                  />
+                  <TouchableOpacity
+                    className="bg-slate-950 rounded-xl px-4 py-3"
+                    onPress={handleSearchSharedUser}
+                  >
+                    <Text className="text-white font-semibold">Buscar</Text>
+                  </TouchableOpacity>
+                </View>
+                {sharedCandidate ? (
+                  <View className="mt-3 rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-white dark:bg-gray-800 p-4 shadow-sm">
+                    <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base mb-1">{sharedCandidate.name}</Text>
+                    <Text className="text-slate-500 dark:text-gray-400 text-sm mb-3">{sharedCandidate.email}</Text>
+                    <TouchableOpacity
+                      className="bg-emerald-500 rounded-xl px-4 py-3 items-center"
+                      onPress={handleConfirmSharedUser}
+                    >
+                      <Text className="text-white font-semibold">Confirmar Usuario</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+                {sharedUser ? (
+                  <Text className="text-emerald-600 dark:text-emerald-400 text-sm mt-2">
+                    Usuario confirmado: {sharedUser.name}
+                  </Text>
+                ) : null}
+              </View>
+
+              <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-4 border border-slate-100 dark:border-gray-600">
+                <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Monto total</Text>
+                <Text className="text-slate-800 dark:text-gray-100 text-xl font-bold mb-3">$ {Number.isFinite(parsedAmount) ? parsedAmount.toFixed(2) : '0.00'}</Text>
+
+                <View className="mb-3">
+                  <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Mi parte</Text>
+                  <TextInput
+                    className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl px-4 py-3 text-slate-800 dark:text-gray-100"
+                    keyboardType="decimal-pad"
+                    value={myShare}
+                    onChangeText={(value) => {
+                      setHasTouchedMyShare(true);
+                      setMyShare(value.replace(/[^\d.,]/g, ''));
+                    }}
+                  />
+                </View>
+
+                <View>
+                  <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Parte de {sharedUser?.name || 'amigo'}</Text>
+                  <TextInput
+                    className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl px-4 py-3 text-slate-800 dark:text-gray-100"
+                    keyboardType="decimal-pad"
+                    value={Number.isFinite(friendShareValue) ? friendShareValue.toFixed(2) : '0.00'}
+                    editable={false}
+                  />
+                </View>
+              </View>
+            </View>
+          ) : null}
 
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-2">

@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "Tests": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -44,7 +45,8 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "@types/react": "~19.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.8"
   },
   "private": true
 }

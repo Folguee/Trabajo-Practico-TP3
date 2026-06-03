@@ -6,7 +6,7 @@ El FRONTEND nunca importa este archivo directamente.
 
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { doc, getFirestore, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -23,3 +23,26 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+export type CounterName = 'userIdCounter' | 'transactionIdCounter';
+
+export async function getNextNumericId(counterName: CounterName): Promise<number> {
+  return await runTransaction(db, async (transaction) => {
+    const counterRef = doc(db, 'counters', counterName);
+    const snapshot = await transaction.get(counterRef);
+
+    const current = snapshot.exists() ? Number(snapshot.data()?.value ?? 0) : 0;
+    const next = current + 1;
+
+    transaction.set(
+      counterRef,
+      {
+        value: next,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return next;
+  });
+}

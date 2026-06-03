@@ -42,7 +42,8 @@ const dateFilters: Array<{ label: string; value: DateFilter }> = [
 ];
 
 const formatAmount = (transaction: Transaction) => {
-  const sign = transaction.type === 'expense' ? '-' : '+';
+  const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
+  const sign = isExpense ? '-' : '+';
   return `${sign} $${transaction.amount.toFixed(2)}`;
 };
 
@@ -117,7 +118,7 @@ export default function Transacciones() {
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const category = getCategoryConfig(item.category);
     const Icon = category.icon;
-    const isExpense = item.type === 'expense';
+    const isExpense = item.type === 'expense' || item.type === 'shared';
 
     return (
       <TouchableOpacity
@@ -289,7 +290,7 @@ export default function Transacciones() {
           <FlatList
             className="flex-1 px-6 pt-6"
             data={filteredTransactions}
-            keyExtractor={(item, index) => item.id || `${item.title}-${index}`}
+            keyExtractor={(item, index) => String(item.id || `${item.title}-${index}`)}
             renderItem={renderTransaction}
             ListHeaderComponent={ListHeader}
             ListEmptyComponent={

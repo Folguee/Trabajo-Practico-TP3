@@ -17,6 +17,7 @@ import {
   Pencil,
   Tag,
   Trash2,
+  Wallet,
 } from 'lucide-react-native';
 import {
   deleteTransaction,
@@ -24,12 +25,14 @@ import {
   Transaction,
 } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
+import { useAuthStore } from '../store/authStore';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
 export default function TransactionDetailScreen() {
   const params = useLocalSearchParams();
+  const currentUser = useAuthStore((state) => state.user);
   const id = getParamValue(params.id);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,7 +131,26 @@ export default function TransactionDetailScreen() {
 
   const category = getCategoryConfig(transaction.category);
   const Icon = category.icon;
-  const isExpense = transaction.type === 'expense';
+  const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
+  const isCreatorView = currentUser?.uid === transaction.creatorUid;
+  const isFriendView = currentUser?.uid === transaction.amigoUid;
+  const myShare = isCreatorView
+    ? Number(transaction.parteCreador ?? 0)
+    : isFriendView
+      ? Number(transaction.parteAmigo ?? 0)
+      : 0;
+  const otherShare = isCreatorView
+    ? Number(transaction.parteAmigo ?? 0)
+    : isFriendView
+      ? Number(transaction.parteCreador ?? 0)
+      : 0;
+  const otherName = isCreatorView
+    ? transaction.amigoNombre || 'Amigo'
+    : isFriendView
+      ? transaction.creatorNombre || 'Creador'
+      : 'Participante';
+  const sharedTotal = transaction.detalleCompartido?.total
+    ?? (myShare + otherShare);
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -185,7 +207,7 @@ export default function TransactionDetailScreen() {
             <View>
               <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Tipo y categoria</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
-                {isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
+                {transaction.type === 'shared' ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
               </Text>
             </View>
           </View>
@@ -201,6 +223,25 @@ export default function TransactionDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {transaction.type === 'shared' && (transaction.detalleCompartido || transaction.creatorUid || transaction.amigoUid) ? (
+            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
+              <View className="flex-row items-center mb-3">
+                <Wallet size={22} color="#0f172a" />
+                <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Detalle compartido</Text>
+              </View>
+              <Text className="text-slate-500 dark:text-gray-400 text-sm mb-2">Monto total original</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-bold text-xl mb-4">
+                ${sharedTotal.toFixed(2)}
+              </Text>
+              <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-3 border border-slate-100 dark:border-gray-600">
+                <Text className="text-slate-700 dark:text-gray-200 text-sm mb-1">Pagado por mí: ${myShare.toFixed(2)}</Text>
+                <Text className="text-slate-700 dark:text-gray-200 text-sm">
+                  Pagado por {otherName}: ${otherShare.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-3">
