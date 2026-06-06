@@ -139,9 +139,8 @@ export default function Dashboard() {
             <View className="px-6 -mt-16">
               <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20">
                 <Text className="text-white text-lg font-bold mb-2">Resumen de Saldos</Text>
-                <Text className={`text-4xl font-bold mb-6 text-center tracking-tight ${
-                  balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                }`}>
+                <Text className={`text-4xl font-bold mb-6 text-center tracking-tight ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
                   ${balance.toFixed(2)}
                 </Text>
 
@@ -175,11 +174,15 @@ export default function Dashboard() {
               <>
                 <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Transacciones Recientes</Text>
                 {recentTransactions.map(renderRecentTransaction)}
+                <TouchableOpacity onPress={() => router.push("/exportar")} className="bg-[#0f172a] p-3 rounded-xl mt-4" >
+                  <Text className="text-white font-semibold text-center"> Ir a Exportar </Text>
+                </TouchableOpacity>
               </>
             ) : (
               renderEmptyState()
             )}
           </View>
+
         </ScrollView>
       </View>
     </SidebarLayout>

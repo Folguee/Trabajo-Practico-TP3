@@ -67,27 +67,27 @@ export default function TransactionDetailScreen() {
 
     // Usar window.confirm en web, Alert.alert en mobile
     const isWeb = typeof window !== 'undefined';
-    const confirmed = isWeb 
+    const confirmed = isWeb
       ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
       : await new Promise<boolean>(resolve => {
-          Alert.alert(
-            'Eliminar movimiento',
-            'Esta acción no se puede deshacer.',
-            [
-              { 
-                text: 'Cancelar', 
-                style: 'cancel',
-                onPress: () => resolve(false)
-              },
-              {
-                text: 'Eliminar',
-                style: 'destructive',
-                onPress: () => resolve(true),
-              },
-            ],
-            { cancelable: false }
-          );
-        });
+        Alert.alert(
+          'Eliminar movimiento',
+          'Esta acción no se puede deshacer.',
+          [
+            {
+              text: 'Cancelar',
+              style: 'cancel',
+              onPress: () => resolve(false)
+            },
+            {
+              text: 'Eliminar',
+              style: 'destructive',
+              onPress: () => resolve(true),
+            },
+          ],
+          { cancelable: false }
+        );
+      });
 
     if (!confirmed) {
       return;
@@ -96,10 +96,10 @@ export default function TransactionDetailScreen() {
     try {
       setIsDeleting(true);
       await deleteTransaction(id);
-      
+
       // Esperar un poco antes de navegar
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       router.push('/dashboard');
     } catch (error) {
       setIsDeleting(false);
@@ -267,6 +267,24 @@ export default function TransactionDetailScreen() {
               </View>
             )}
           </View>
+
+          <TouchableOpacity
+            className="bg-[#0f172a] rounded-xl p-4 mt-6 mb-8"
+            onPress={() =>
+              router.push({
+                pathname: "/exportar",
+                params: {
+                  transactionId: transaction.id
+                }
+              })
+            }
+          >
+
+            <Text className="text-white text-center font-semibold">
+              Exportar CSV
+            </Text>
+
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
