@@ -132,25 +132,15 @@ export default function TransactionDetailScreen() {
   const category = getCategoryConfig(transaction.category);
   const Icon = category.icon;
   const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
-  const isCreatorView = currentUser?.uid === transaction.creatorUid;
-  const isFriendView = currentUser?.uid === transaction.amigoUid;
-  const myShare = isCreatorView
-    ? Number(transaction.parteCreador ?? 0)
-    : isFriendView
-      ? Number(transaction.parteAmigo ?? 0)
-      : 0;
-  const otherShare = isCreatorView
-    ? Number(transaction.parteAmigo ?? 0)
-    : isFriendView
-      ? Number(transaction.parteCreador ?? 0)
-      : 0;
-  const otherName = isCreatorView
-    ? transaction.amigoNombre || 'Amigo'
-    : isFriendView
-      ? transaction.creatorNombre || 'Creador'
-      : 'Participante';
-  const sharedTotal = transaction.detalleCompartido?.total
-    ?? (myShare + otherShare);
+  const currentUserId = currentUser?.uid;
+  const sharedFriends = transaction.detalleCompartido?.amigos ?? [];
+  const myShare = Number(
+    currentUserId === transaction.creatorUid
+      ? transaction.parteCreador ?? 0
+      : transaction.parteAmigo ?? 0
+  );
+  const sharedTotal = transaction.detalleCompartido?.total ?? 0;
+  const otherParticipants = sharedFriends.filter((friend) => friend.uid !== currentUserId);
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -235,10 +225,23 @@ export default function TransactionDetailScreen() {
                 ${sharedTotal.toFixed(2)}
               </Text>
               <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-3 border border-slate-100 dark:border-gray-600">
-                <Text className="text-slate-700 dark:text-gray-200 text-sm mb-1">Pagado por mí: ${myShare.toFixed(2)}</Text>
-                <Text className="text-slate-700 dark:text-gray-200 text-sm">
-                  Pagado por {otherName}: ${otherShare.toFixed(2)}
+                <Text className="text-slate-700 dark:text-gray-200 text-sm mb-2">
+                  Pagado por mí: ${myShare.toFixed(2)}
                 </Text>
+                {otherParticipants.length > 0 ? (
+                  otherParticipants.map((friend) => (
+                    <Text
+                      key={friend.uid || friend.nombre}
+                      className="text-slate-700 dark:text-gray-200 text-sm mb-1"
+                    >
+                      Pagado por {friend.nombre}: ${Number(friend.amount).toFixed(2)}
+                    </Text>
+                  ))
+                ) : (
+                  <Text className="text-slate-700 dark:text-gray-200 text-sm">
+                    No hay otros participantes registrados.
+                  </Text>
+                )}
               </View>
             </View>
           ) : null}

@@ -72,7 +72,7 @@ export default function TransactionFormScreen() {
   const [photoUri, setPhotoUri] = useState('');
   const [sharedPhone, setSharedPhone] = useState('');
   const [sharedCandidate, setSharedCandidate] = useState<SharedUser | null>(null);
-  const [sharedUser, setSharedUser] = useState<SharedUser | null>(null);
+  const [usuariosCompartidos, setUsuariosCompartidos] = useState<SharedUser[]>([]);
   const [myShare, setMyShare] = useState('');
   const [hasTouchedMyShare, setHasTouchedMyShare] = useState(false);
   const [isLoading, setIsLoading] = useState(Boolean(id));
@@ -146,8 +146,25 @@ export default function TransactionFormScreen() {
   };
 
   const handleConfirmSharedUser = () => {
-    setSharedUser(sharedCandidate);
+    if (!sharedCandidate) return;
+
+    if (sharedCandidate.uid === user?.uid) {
+      Alert.alert('No puedes agregarte', 'No puedes agregar tu propio usuario al gasto.');
+      return;
+    }
+
+    if (usuariosCompartidos.some((item) => item.uid === sharedCandidate.uid)) {
+      Alert.alert('Usuario repetido', 'Ya agregaste este usuario al gasto.');
+      return;
+    }
+
+    setUsuariosCompartidos((prev) => [...prev, sharedCandidate]);
     setSharedCandidate(null);
+    setSharedPhone('');
+  };
+
+  const handleRemoveSharedUser = (uid: string) => {
+    setUsuariosCompartidos((prev) => prev.filter((item) => item.uid !== uid));
   };
 
   const handlePickPhoto = async () => {
@@ -194,22 +211,26 @@ export default function TransactionFormScreen() {
     }
   };
 
+  const friendCount = usuariosCompartidos.length;
   const parsedAmount = Number(amount.replace(',', '.'));
   const parsedMyShare = Number(myShare.replace(',', '.'));
-  const friendShareValue = Number.isFinite(parsedAmount) ? parsedAmount - parsedMyShare : 0;
+  const friendShareValue =
+    friendCount > 0 && Number.isFinite(parsedAmount) && Number.isFinite(parsedMyShare)
+      ? (parsedAmount - parsedMyShare) / friendCount
+      : 0;
 
   useEffect(() => {
     if (type !== 'shared') return;
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0 || friendCount === 0) {
       setMyShare('0.00');
       return;
     }
 
     if (!hasTouchedMyShare) {
-      setMyShare((parsedAmount / 2).toFixed(2));
+      setMyShare((parsedAmount / (friendCount + 1)).toFixed(2));
     }
-  }, [amount, hasTouchedMyShare, parsedAmount, type]);
+  }, [amount, hasTouchedMyShare, parsedAmount, type, friendCount]);
 
   const handleSave = async () => {
     if (!title.trim() || !amount.trim() || !category || !date.trim()) {
@@ -233,41 +254,52 @@ export default function TransactionFormScreen() {
       return;
     }
 
-    const detalleCompartido = type === 'shared' && sharedUser
-      ? {
-          total: parsedAmount,
-          pagadoPorMi: parsedMyShare,
-          pagadoPorAmigo: friendShareValue,
-          amigo: {
-            uid: sharedUser.uid,
-            nombre: sharedUser.name,
-            telefono: sharedUser.phone,
-            email: sharedUser.email,
-          },
-        }
-      : undefined;
+    const detalleCompartido =
+      type === 'shared' && friendCount > 0
+        ? {
+            total: parsedAmount,
+            pagadoPorMi: parsedMyShare,
+            pagadoPorAmigo: friendShareValue,
+            amigos: usuariosCompartidos.map((amigo) => ({
+              uid: amigo.uid,
+              nombre: amigo.name,
+              telefono: amigo.phone,
+              email: amigo.email,
+              amount: friendShareValue,
+            })),
+          }
+        : undefined;
 
     if (type === 'shared') {
+      if (friendCount === 0) {
+        Alert.alert('Usuarios compartidos requeridos', 'Agrega al menos un amigo al gasto compartido.');
+        return;
+      }
+
       if (!Number.isFinite(parsedMyShare) || parsedMyShare <= 0) {
         Alert.alert('Mi parte invalida', 'Ingresa un monto valido para tu parte.');
         return;
       }
 
-      if (friendShareValue < 0) {
-        Alert.alert('Distribucion invalida', 'Tu parte no puede superar el monto total.');
+      if (!Number.isFinite(friendShareValue) || friendShareValue <= 0) {
+        Alert.alert('Distribucion invalida', 'La parte de cada amigo debe ser un valor valido mayor a cero.');
         return;
       }
 
-      if (Math.abs(parsedAmount - (parsedMyShare + friendShareValue)) > 0.0001) {
-        Alert.alert('Distribucion invalida', 'La suma de las partes debe coincidir con el monto total.');
-        return;
-      }
-
-      if (!sharedUser) {
-        Alert.alert('Usuario compartido requerido', 'Busca primero al usuario con el que compartes el gasto.');
+      if (Math.abs(parsedAmount - (parsedMyShare + friendShareValue * friendCount)) > 0.0001) {
+        Alert.alert('Distribucion invalida', 'La suma de mi parte y las partes de los amigos debe coincidir con el monto total.');
         return;
       }
     }
+
+    const sharedPayloadBase = {
+      creatorUid: user.uid,
+      creatorNombre: user.displayName || 'Yo',
+      parteCreador: parsedMyShare,
+      parteAmigo: friendShareValue,
+      detalleCompartido,
+      myShare: parsedMyShare,
+    };
 
     const payload: Omit<Transaction, 'id'> = {
       title: title.trim(),
@@ -279,24 +311,7 @@ export default function TransactionFormScreen() {
       photoUri,
       userId: user.uid,
       status: 'agregado',
-      ...(type === 'shared'
-        ? {
-            creatorUid: user.uid,
-            creatorNombre: user.displayName || 'Yo',
-            amigoUid: sharedUser?.uid || '',
-            amigoNombre: sharedUser?.name || 'Amigo',
-            parteCreador: parsedMyShare,
-            parteAmigo: friendShareValue,
-            sharedWith: {
-              uid: sharedUser?.uid || '',
-              phone: sharedUser?.phone || '',
-              name: sharedUser?.name || '',
-              amount: friendShareValue,
-            },
-            detalleCompartido,
-            myShare: parsedMyShare,
-          }
-        : {}),
+      ...(type === 'shared' ? sharedPayloadBase : {}),
     };
 
     try {
@@ -304,57 +319,50 @@ export default function TransactionFormScreen() {
       if (id) {
         await updateTransaction(id, payload);
         router.replace({ pathname: '/transaction-detail', params: { id } });
-      } else if (type === 'shared' && sharedUser) {
-        await addTransaction({
+      } else if (type === 'shared') {
+        const creatorTransaction = {
           ...payload,
           amount: -parsedMyShare,
           userId: user.uid,
-          creatorUid: user.uid,
-          creatorNombre: user.displayName || 'Yo',
-          amigoUid: sharedUser.uid,
-          amigoNombre: sharedUser.name,
-          parteCreador: parsedMyShare,
-          parteAmigo: friendShareValue,
           sharedWith: {
-            uid: sharedUser.uid,
-            phone: sharedUser.phone,
-            name: sharedUser.name,
+            uid: usuariosCompartidos[0].uid,
+            phone: usuariosCompartidos[0].phone,
+            name: usuariosCompartidos[0].name,
             amount: friendShareValue,
           },
-          detalleCompartido,
-          myShare: parsedMyShare,
-        });
+        };
 
-        await addTransaction({
-          ...payload,
-          amount: -friendShareValue,
-          userId: sharedUser.uid,
-          creatorUid: user.uid,
-          creatorNombre: user.displayName || 'Yo',
-          amigoUid: sharedUser.uid,
-          amigoNombre: sharedUser.name,
-          parteCreador: parsedMyShare,
-          parteAmigo: friendShareValue,
-          sharedWith: {
-            uid: user.uid,
-            phone: user.email || '',
-            name: user.displayName || 'Usuario compartido',
-            amount: parsedMyShare,
-          },
-          detalleCompartido,
-          myShare: friendShareValue,
-        });
+        await addTransaction(creatorTransaction);
 
-        try {
-          const friendBalance = Number(sharedUser.saldo ?? 0);
-          const friendExpenses = Number(sharedUser.gastos ?? 0);
-          await updateDoc(doc(db, 'users', sharedUser.docId), {
-            saldo: friendBalance - friendShareValue,
-            gastos: friendExpenses + friendShareValue,
-          });
-        } catch (updateError) {
-          console.warn('No se pudo actualizar saldo del amigo:', updateError);
-        }
+        await Promise.all(
+          usuariosCompartidos.map(async (amigo) => {
+            await addTransaction({
+              ...payload,
+              amount: -friendShareValue,
+              userId: amigo.uid,
+              amigoUid: amigo.uid,
+              amigoNombre: amigo.name,
+              sharedWith: {
+                uid: user.uid,
+                phone: user.email || '',
+                name: user.displayName || 'Yo',
+                amount: parsedMyShare,
+              },
+              myShare: friendShareValue,
+            });
+
+            try {
+              const friendBalance = Number(amigo.saldo ?? 0);
+              const friendExpenses = Number(amigo.gastos ?? 0);
+              await updateDoc(doc(db, 'users', amigo.docId), {
+                saldo: friendBalance - friendShareValue,
+                gastos: friendExpenses + friendShareValue,
+              });
+            } catch (updateError) {
+              console.warn('No se pudo actualizar saldo del amigo:', updateError);
+            }
+          })
+        );
 
         router.replace('/transacciones');
       } else {
@@ -402,7 +410,7 @@ export default function TransactionFormScreen() {
                 placeholder="0.00"
                 placeholderTextColor="#64748b"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={(value) => setAmount(value.replace(/[^\d.,]/g, ''))}
               />
             </View>
           </View>
@@ -479,20 +487,45 @@ export default function TransactionFormScreen() {
                       className="bg-emerald-500 rounded-xl px-4 py-3 items-center"
                       onPress={handleConfirmSharedUser}
                     >
-                      <Text className="text-white font-semibold">Confirmar Usuario</Text>
+                      <Text className="text-white font-semibold">Agregar al gasto</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
-                {sharedUser ? (
-                  <Text className="text-emerald-600 dark:text-emerald-400 text-sm mt-2">
-                    Usuario confirmado: {sharedUser.name}
-                  </Text>
-                ) : null}
               </View>
+
+              {usuariosCompartidos.length > 0 ? (
+                <View className="mb-3">
+                  <Text className="text-slate-500 dark:text-gray-400 text-xs mb-2">
+                    Usuarios agregados ({usuariosCompartidos.length})
+                  </Text>
+                  {usuariosCompartidos.map((amigo) => (
+                    <View
+                      key={amigo.uid}
+                      className="flex-row items-center justify-between bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 border border-slate-100 dark:border-gray-600"
+                    >
+                      <View className="flex-1 pr-3">
+                        <Text className="text-slate-800 dark:text-gray-100 font-semibold">{amigo.name}</Text>
+                        <Text className="text-slate-500 dark:text-gray-400 text-sm">{amigo.phone}</Text>
+                        <Text className="text-slate-500 dark:text-gray-400 text-sm mt-1">
+                          Parte: $ {Number.isFinite(friendShareValue) ? friendShareValue.toFixed(2) : '0.00'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        className="bg-rose-500 rounded-full w-10 h-10 items-center justify-center"
+                        onPress={() => handleRemoveSharedUser(amigo.uid)}
+                      >
+                        <Text className="text-white font-bold">X</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
 
               <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-4 border border-slate-100 dark:border-gray-600">
                 <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Monto total</Text>
-                <Text className="text-slate-800 dark:text-gray-100 text-xl font-bold mb-3">$ {Number.isFinite(parsedAmount) ? parsedAmount.toFixed(2) : '0.00'}</Text>
+                <Text className="text-slate-800 dark:text-gray-100 text-xl font-bold mb-3">
+                  $ {Number.isFinite(parsedAmount) ? parsedAmount.toFixed(2) : '0.00'}
+                </Text>
 
                 <View className="mb-3">
                   <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Mi parte</Text>
@@ -508,7 +541,7 @@ export default function TransactionFormScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Parte de {sharedUser?.name || 'amigo'}</Text>
+                  <Text className="text-slate-500 dark:text-gray-400 text-xs mb-1">Parte por amigo</Text>
                   <TextInput
                     className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-600 rounded-xl px-4 py-3 text-slate-800 dark:text-gray-100"
                     keyboardType="decimal-pad"

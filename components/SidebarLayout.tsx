@@ -50,6 +50,7 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
           })}
         </View>
 
+        {/* Acá está el modo oscuro */}
         <TouchableOpacity
           className="flex-row items-center gap-3 px-3 py-3 w-full rounded-xl mb-2"
           onPress={toggleTheme}
