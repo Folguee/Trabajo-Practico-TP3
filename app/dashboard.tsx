@@ -37,9 +37,9 @@ export default function Dashboard() {
 
     transactions.forEach((t) => {
       if (t.type === 'income') {
-        income += t.amount;
+        income += Math.max(0, t.amount);
       } else {
-        expense += t.amount;
+        expense += Math.abs(t.amount);
       }
     });
 
@@ -95,7 +95,7 @@ export default function Dashboard() {
   const renderRecentTransaction = (item: Transaction) => {
     const category = getCategoryConfig(item.category);
     const Icon = category.icon;
-    const isExpense = item.type === 'expense';
+    const isExpense = item.type === 'expense' || item.type === 'shared';
 
     return (
       <TouchableOpacity

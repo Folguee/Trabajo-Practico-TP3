@@ -12,7 +12,8 @@ import {
   onAuthStateChanged,
   User,
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { auth, db, getNextNumericId } from './firebase';
 
 // --- Login con email y contraseña ---
 export async function login(email: string, password: string): Promise<User> {
@@ -24,10 +25,23 @@ export async function login(email: string, password: string): Promise<User> {
 export async function register(
   name: string,
   email: string,
-  password: string
+  password: string,
+  phone: string
 ): Promise<User> {
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName: name });
+
+  const nextId = await getNextNumericId('userIdCounter');
+
+  await setDoc(doc(db, 'users', String(nextId)), {
+    id: nextId,
+    uid: result.user.uid,
+    nombre: name,
+    telefono: phone,
+    email,
+    createdAt: serverTimestamp(),
+  });
+
   return result.user;
 }
 
