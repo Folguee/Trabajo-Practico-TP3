@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "app_temp",
-    "slug": "app_temp",
+    "name": "Control de Gastos",
+    "slug": "control-de-gastos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
