@@ -17,10 +17,7 @@ import {
   Pencil,
   Tag,
   Trash2,
-<<<<<<< HEAD
   Wallet,
-=======
->>>>>>> origin/main
 } from 'lucide-react-native';
 import {
   deleteTransaction,
@@ -28,20 +25,14 @@ import {
   Transaction,
 } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
-<<<<<<< HEAD
 import { useAuthStore } from '../store/authStore';
-=======
->>>>>>> origin/main
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
 export default function TransactionDetailScreen() {
   const params = useLocalSearchParams();
-<<<<<<< HEAD
   const currentUser = useAuthStore((state) => state.user);
-=======
->>>>>>> origin/main
   const id = getParamValue(params.id);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +67,6 @@ export default function TransactionDetailScreen() {
 
     // Usar window.confirm en web, Alert.alert en mobile
     const isWeb = typeof window !== 'undefined';
-<<<<<<< HEAD
     const confirmed = isWeb
       ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
       : await new Promise<boolean>(resolve => {
@@ -98,29 +88,6 @@ export default function TransactionDetailScreen() {
           { cancelable: false }
         );
       });
-=======
-    const confirmed = isWeb 
-      ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
-      : await new Promise<boolean>(resolve => {
-          Alert.alert(
-            'Eliminar movimiento',
-            'Esta acción no se puede deshacer.',
-            [
-              { 
-                text: 'Cancelar', 
-                style: 'cancel',
-                onPress: () => resolve(false)
-              },
-              {
-                text: 'Eliminar',
-                style: 'destructive',
-                onPress: () => resolve(true),
-              },
-            ],
-            { cancelable: false }
-          );
-        });
->>>>>>> origin/main
 
     if (!confirmed) {
       return;
@@ -129,17 +96,10 @@ export default function TransactionDetailScreen() {
     try {
       setIsDeleting(true);
       await deleteTransaction(id);
-<<<<<<< HEAD
 
       // Esperar un poco antes de navegar
       await new Promise(resolve => setTimeout(resolve, 500));
 
-=======
-      
-      // Esperar un poco antes de navegar
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
->>>>>>> origin/main
       router.push('/dashboard');
     } catch (error) {
       setIsDeleting(false);
@@ -152,11 +112,7 @@ export default function TransactionDetailScreen() {
 
   if (isLoading) {
     return (
-<<<<<<< HEAD
       <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center">
-=======
-      <View className="flex-1 bg-gray-50 items-center justify-center">
->>>>>>> origin/main
         <ActivityIndicator size="large" color="#0f172a" />
       </View>
     );
@@ -164,13 +120,8 @@ export default function TransactionDetailScreen() {
 
   if (!transaction) {
     return (
-<<<<<<< HEAD
       <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center px-6">
         <Text className="text-slate-800 dark:text-gray-100 text-xl font-bold mb-2">Movimiento no encontrado</Text>
-=======
-      <View className="flex-1 bg-gray-50 items-center justify-center px-6">
-        <Text className="text-slate-800 text-xl font-bold mb-2">Movimiento no encontrado</Text>
->>>>>>> origin/main
         <TouchableOpacity className="bg-slate-950 rounded-xl px-5 py-3" onPress={() => router.replace('/transacciones')}>
           <Text className="text-white font-semibold">Volver</Text>
         </TouchableOpacity>
@@ -180,7 +131,6 @@ export default function TransactionDetailScreen() {
 
   const category = getCategoryConfig(transaction.category);
   const Icon = category.icon;
-<<<<<<< HEAD
   const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
   const currentUserId = currentUser?.uid;
   const sharedFriends = transaction.detalleCompartido?.amigos ?? [];
@@ -194,12 +144,6 @@ export default function TransactionDetailScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
-=======
-  const isExpense = transaction.type === 'expense';
-
-  return (
-    <View className="flex-1 bg-gray-50">
->>>>>>> origin/main
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="bg-[#0f172a] pt-14 pb-24 px-6 rounded-b-3xl">
           <View className="flex-row justify-between items-center mb-6">
@@ -244,7 +188,6 @@ export default function TransactionDetailScreen() {
         </View>
 
         <View className="px-6 mt-8">
-<<<<<<< HEAD
           <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Informacion</Text>
 
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
@@ -255,23 +198,10 @@ export default function TransactionDetailScreen() {
               <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Tipo y categoria</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
                 {transaction.type === 'shared' ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
-=======
-          <Text className="text-slate-800 text-lg font-bold mb-4">Informacion</Text>
-
-          <View className="bg-white rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200">
-            <View className="bg-slate-100 w-12 h-12 rounded-full items-center justify-center mr-4">
-              <Tag size={22} color="#0f172a" />
-            </View>
-            <View>
-              <Text className="text-slate-400 text-xs mb-1">Tipo y categoria</Text>
-              <Text className="text-slate-800 font-semibold text-base">
-                {isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
->>>>>>> origin/main
               </Text>
             </View>
           </View>
 
-<<<<<<< HEAD
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="bg-slate-100 dark:bg-gray-700 w-12 h-12 rounded-full items-center justify-center mr-4">
               <Calendar size={22} color="#0f172a" />
@@ -279,21 +209,11 @@ export default function TransactionDetailScreen() {
             <View>
               <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Fecha</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
-=======
-          <View className="bg-white rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200">
-            <View className="bg-slate-100 w-12 h-12 rounded-full items-center justify-center mr-4">
-              <Calendar size={22} color="#0f172a" />
-            </View>
-            <View>
-              <Text className="text-slate-400 text-xs mb-1">Fecha</Text>
-              <Text className="text-slate-800 font-semibold text-base">
->>>>>>> origin/main
                 {transaction.date || 'Sin fecha'}
               </Text>
             </View>
           </View>
 
-<<<<<<< HEAD
           {transaction.type === 'shared' && (transaction.detalleCompartido || transaction.creatorUid || transaction.amigoUid) ? (
             <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
               <View className="flex-row items-center mb-3">
@@ -332,34 +252,18 @@ export default function TransactionDetailScreen() {
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Nota</Text>
             </View>
             <Text className="text-slate-500 dark:text-gray-400">
-=======
-          <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200">
-            <View className="flex-row items-center mb-3">
-              <FileText size={22} color="#0f172a" />
-              <Text className="text-slate-800 font-semibold text-base ml-2">Nota</Text>
-            </View>
-            <Text className="text-slate-500">
->>>>>>> origin/main
               {transaction.note || 'Sin nota cargada.'}
             </Text>
           </View>
 
-<<<<<<< HEAD
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-10 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-3">
               <ImageIcon size={22} color="#0f172a" />
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Imagen</Text>
-=======
-          <View className="bg-white rounded-2xl p-4 mb-10 shadow-sm shadow-slate-200">
-            <View className="flex-row items-center mb-3">
-              <ImageIcon size={22} color="#0f172a" />
-              <Text className="text-slate-800 font-semibold text-base ml-2">Imagen</Text>
->>>>>>> origin/main
             </View>
             {transaction.photoUri ? (
               <Image source={{ uri: transaction.photoUri }} className="w-full h-56 rounded-2xl" />
             ) : (
-<<<<<<< HEAD
               <View className="bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600 rounded-2xl h-32 items-center justify-center">
                 <ImageIcon size={28} color="#94a3b8" />
                 <Text className="text-slate-400 dark:text-gray-500 mt-2">Sin imagen adjunta</Text>
@@ -384,14 +288,6 @@ export default function TransactionDetailScreen() {
             </Text>
 
           </TouchableOpacity>
-=======
-              <View className="bg-slate-50 border border-slate-100 rounded-2xl h-32 items-center justify-center">
-                <ImageIcon size={28} color="#94a3b8" />
-                <Text className="text-slate-400 mt-2">Sin imagen adjunta</Text>
-              </View>
-            )}
-          </View>
->>>>>>> origin/main
         </View>
       </ScrollView>
     </View>

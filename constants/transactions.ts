@@ -72,7 +72,6 @@ export const formatDateInput = (value: string) => {
 export const parseTransactionDate = (value?: string) => {
   if (!value) return null;
 
-<<<<<<< HEAD
   const parts = value.split('/');
   if (parts.length !== 3) return null;
 
@@ -80,15 +79,10 @@ export const parseTransactionDate = (value?: string) => {
   if (!day || !month || !year) return null;
   if (month < 1 || month > 12) return null;
   if (day < 1 || day > 31) return null;
-=======
-  const [day, month, year] = value.split('/').map(Number);
-  if (!day || !month || !year) return null;
->>>>>>> origin/main
 
   const parsedDate = new Date(year, month - 1, day);
   if (Number.isNaN(parsedDate.getTime())) return null;
 
-<<<<<<< HEAD
   if (
     parsedDate.getDate() !== day ||
     parsedDate.getMonth() !== month - 1 ||
@@ -97,7 +91,5 @@ export const parseTransactionDate = (value?: string) => {
     return null;
   }
 
-=======
->>>>>>> origin/main
   return parsedDate;
 };

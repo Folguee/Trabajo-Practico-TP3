@@ -39,7 +39,6 @@ export default function Login() {
   };
 
   return (
-<<<<<<< HEAD
     <ImageBackground
       source={BG_IMG}
       className="flex-1"
@@ -127,92 +126,6 @@ export default function Login() {
               </TouchableOpacity>
             </View>
           </View>
-=======
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
-    >
-      <View className="flex-1 justify-center px-6">
-        
-        <View className="items-center mb-8">
-          <View className="bg-[#0f172a] w-16 h-16 rounded-2xl items-center justify-center mb-4">
-            <Wallet size={32} color="white" />
-          </View>
-          <Text className="text-3xl font-bold text-center text-slate-800 mb-2">Bienvenido</Text>
-          <Text className="text-slate-500 text-center">Inicia sesión para continuar</Text>
-        </View>
-
-        <View className="bg-white rounded-3xl p-6 shadow-sm shadow-slate-200 mb-8">
-          <View className="mb-4">
-            <Text className="text-slate-700 font-medium mb-2 ml-1">Email</Text>
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  className={`bg-slate-50 border rounded-xl px-4 py-3 text-base text-slate-800 ${errors.email ? 'border-rose-500' : 'border-slate-200'}`}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholder="tu@email.com"
-                  placeholderTextColor="#94a3b8"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                />
-              )}
-            />
-            {errors.email && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.email.message}</Text>}
-          </View>
-
-          <View className="mb-6">
-            <Text className="text-slate-700 font-medium mb-2 ml-1">Contraseña</Text>
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <View className="relative justify-center">
-                  <TextInput
-                    className={`bg-slate-50 border rounded-xl px-4 py-3 pr-12 text-base text-slate-800 ${errors.password ? 'border-rose-500' : 'border-slate-200'}`}
-                    secureTextEntry={!showPassword}
-                    placeholder="Mínimo 6 caracteres"
-                    placeholderTextColor="#94a3b8"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                  />
-                  <TouchableOpacity
-                    className="absolute right-4"
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff size={20} color="#64748b" />
-                    ) : (
-                      <Eye size={20} color="#64748b" />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              )}
-            />
-            {errors.password && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.password.message}</Text>}
-          </View>
-
-          <TouchableOpacity
-            className="bg-[#0f172a] p-4 rounded-xl items-center mt-2 disabled:opacity-50"
-            onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}
-          >
-            <Text className="text-white font-bold text-lg">
-              {isSubmitting ? 'Ingresando...' : 'Iniciar Sesión'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="flex-row justify-center">
-          <Text className="text-slate-500 font-medium">¿No tienes cuenta? </Text>
-          <TouchableOpacity onPress={() => router.push('/register')}>
-            <Text className="text-indigo-600 font-bold">Regístrate</Text>
-          </TouchableOpacity>
->>>>>>> origin/main
         </View>
       </KeyboardAvoidingView>
     </ImageBackground>

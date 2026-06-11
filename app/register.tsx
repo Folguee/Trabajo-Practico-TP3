@@ -1,9 +1,5 @@
 import { useState } from 'react';
-<<<<<<< HEAD
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView, ImageBackground } from 'react-native';
-=======
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
->>>>>>> origin/main
 import { router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,7 +50,6 @@ export default function Register() {
   };
 
   return (
-<<<<<<< HEAD
     <ImageBackground
       source={BG_IMG}
       className="flex-1"
@@ -219,148 +214,5 @@ export default function Register() {
         </ScrollView>
       </KeyboardAvoidingView>
     </ImageBackground>
-=======
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-gray-50"
-    >
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} showsVerticalScrollIndicator={false}>
-        <View className="px-6 py-12">
-          
-          <View className="items-center mb-8">
-            <View className="bg-[#0f172a] w-16 h-16 rounded-2xl items-center justify-center mb-4">
-              <UserPlus size={32} color="white" />
-            </View>
-            <Text className="text-3xl font-bold text-center text-slate-800 mb-2">Crear Cuenta</Text>
-            <Text className="text-slate-500 text-center">Regístrate para comenzar</Text>
-          </View>
-
-          <View className="bg-white rounded-3xl p-6 shadow-sm shadow-slate-200 mb-8">
-            <View className="mb-4">
-              <Text className="text-slate-700 font-medium mb-2 ml-1">Nombre</Text>
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    className={`bg-slate-50 border rounded-xl px-4 py-3 text-base text-slate-800 ${errors.name ? 'border-rose-500' : 'border-slate-200'}`}
-                    placeholder="Tu nombre completo"
-                    placeholderTextColor="#94a3b8"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                  />
-                )}
-              />
-              {errors.name && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.name.message}</Text>}
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-slate-700 font-medium mb-2 ml-1">Email</Text>
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    className={`bg-slate-50 border rounded-xl px-4 py-3 text-base text-slate-800 ${errors.email ? 'border-rose-500' : 'border-slate-200'}`}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    placeholder="tu@email.com"
-                    placeholderTextColor="#94a3b8"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                  />
-                )}
-              />
-              {errors.email && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.email.message}</Text>}
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-slate-700 font-medium mb-2 ml-1">Contraseña</Text>
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View className="relative justify-center">
-                    <TextInput
-                      className={`bg-slate-50 border rounded-xl px-4 py-3 pr-12 text-base text-slate-800 ${errors.password ? 'border-rose-500' : 'border-slate-200'}`}
-                      secureTextEntry={!showPassword}
-                      placeholder="5+ caracteres, 1 mayúscula, 1 número"
-                      placeholderTextColor="#94a3b8"
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value}
-                    />
-                    <TouchableOpacity
-                      className="absolute right-4"
-                      onPress={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff size={20} color="#64748b" />
-                      ) : (
-                        <Eye size={20} color="#64748b" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-              />
-              {errors.password && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.password.message}</Text>}
-            </View>
-
-            <View className="mb-6">
-              <Text className="text-slate-700 font-medium mb-2 ml-1">Confirmar Contraseña</Text>
-              <Controller
-                control={control}
-                name="confirmPassword"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View className="relative justify-center">
-                    <TextInput
-                      className={`bg-slate-50 border rounded-xl px-4 py-3 pr-12 text-base text-slate-800 ${errors.confirmPassword ? 'border-rose-500' : 'border-slate-200'}`}
-                      secureTextEntry={!showConfirmPassword}
-                      placeholder="Repite la contraseña"
-                      placeholderTextColor="#94a3b8"
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value}
-                    />
-                    <TouchableOpacity
-                      className="absolute right-4"
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff size={20} color="#64748b" />
-                      ) : (
-                        <Eye size={20} color="#64748b" />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-              />
-              {errors.confirmPassword && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.confirmPassword.message}</Text>}
-            </View>
-
-            <TouchableOpacity
-              className="bg-[#0f172a] p-4 rounded-xl items-center mt-2 disabled:opacity-50"
-              onPress={handleSubmit(onSubmit)}
-              disabled={isSubmitting}
-            >
-              <Text className="text-white font-bold text-lg">
-                {isSubmitting ? 'Creando cuenta...' : 'Registrarse'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View className="flex-row justify-center pb-8">
-            <Text className="text-slate-500 font-medium">¿Ya tienes cuenta? </Text>
-            <TouchableOpacity onPress={() => router.push('/login')}>
-              <Text className="text-indigo-600 font-bold">Inicia Sesión</Text>
-            </TouchableOpacity>
-          </View>
-          
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
->>>>>>> origin/main
   );
 }
