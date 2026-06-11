@@ -48,13 +48,6 @@ export type Transaction = {
       telefono?: string;
       email?: string;
     };
-    amigos?: Array<{
-      uid?: string;
-      nombre?: string;
-      telefono?: string;
-      email?: string;
-      amount: number;
-    }>;
   };
   status: 'agregado' | 'eliminado';
 };
