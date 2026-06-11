@@ -17,6 +17,7 @@ import {
   Pencil,
   Tag,
   Trash2,
+  Wallet,
 } from 'lucide-react-native';
 import {
   deleteTransaction,
@@ -24,12 +25,14 @@ import {
   Transaction,
 } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
+import { useAuthStore } from '../store/authStore';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
 export default function TransactionDetailScreen() {
   const params = useLocalSearchParams();
+  const currentUser = useAuthStore((state) => state.user);
   const id = getParamValue(params.id);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,7 +112,7 @@ export default function TransactionDetailScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-gray-50 items-center justify-center">
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center">
         <ActivityIndicator size="large" color="#0f172a" />
       </View>
     );
@@ -117,8 +120,8 @@ export default function TransactionDetailScreen() {
 
   if (!transaction) {
     return (
-      <View className="flex-1 bg-gray-50 items-center justify-center px-6">
-        <Text className="text-slate-800 text-xl font-bold mb-2">Movimiento no encontrado</Text>
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900 items-center justify-center px-6">
+        <Text className="text-slate-800 dark:text-gray-100 text-xl font-bold mb-2">Movimiento no encontrado</Text>
         <TouchableOpacity className="bg-slate-950 rounded-xl px-5 py-3" onPress={() => router.replace('/transacciones')}>
           <Text className="text-white font-semibold">Volver</Text>
         </TouchableOpacity>
@@ -128,10 +131,19 @@ export default function TransactionDetailScreen() {
 
   const category = getCategoryConfig(transaction.category);
   const Icon = category.icon;
-  const isExpense = transaction.type === 'expense';
+  const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
+  const currentUserId = currentUser?.uid;
+  const sharedFriends = transaction.detalleCompartido?.amigos ?? [];
+  const myShare = Number(
+    currentUserId === transaction.creatorUid
+      ? transaction.parteCreador ?? 0
+      : transaction.parteAmigo ?? 0
+  );
+  const sharedTotal = transaction.detalleCompartido?.total ?? 0;
+  const otherParticipants = sharedFriends.filter((friend) => friend.uid !== currentUserId);
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="bg-[#0f172a] pt-14 pb-24 px-6 rounded-b-3xl">
           <View className="flex-row justify-between items-center mb-6">
@@ -176,53 +188,85 @@ export default function TransactionDetailScreen() {
         </View>
 
         <View className="px-6 mt-8">
-          <Text className="text-slate-800 text-lg font-bold mb-4">Informacion</Text>
+          <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Informacion</Text>
 
-          <View className="bg-white rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200">
-            <View className="bg-slate-100 w-12 h-12 rounded-full items-center justify-center mr-4">
+          <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
+            <View className="bg-slate-100 dark:bg-gray-700 w-12 h-12 rounded-full items-center justify-center mr-4">
               <Tag size={22} color="#0f172a" />
             </View>
             <View>
-              <Text className="text-slate-400 text-xs mb-1">Tipo y categoria</Text>
-              <Text className="text-slate-800 font-semibold text-base">
-                {isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
+              <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Tipo y categoria</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
+                {transaction.type === 'shared' ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
               </Text>
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200">
-            <View className="bg-slate-100 w-12 h-12 rounded-full items-center justify-center mr-4">
+          <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
+            <View className="bg-slate-100 dark:bg-gray-700 w-12 h-12 rounded-full items-center justify-center mr-4">
               <Calendar size={22} color="#0f172a" />
             </View>
             <View>
-              <Text className="text-slate-400 text-xs mb-1">Fecha</Text>
-              <Text className="text-slate-800 font-semibold text-base">
+              <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Fecha</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
                 {transaction.date || 'Sin fecha'}
               </Text>
             </View>
           </View>
 
-          <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200">
+          {transaction.type === 'shared' && (transaction.detalleCompartido || transaction.creatorUid || transaction.amigoUid) ? (
+            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
+              <View className="flex-row items-center mb-3">
+                <Wallet size={22} color="#0f172a" />
+                <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Detalle compartido</Text>
+              </View>
+              <Text className="text-slate-500 dark:text-gray-400 text-sm mb-2">Monto total original</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-bold text-xl mb-4">
+                ${sharedTotal.toFixed(2)}
+              </Text>
+              <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-3 border border-slate-100 dark:border-gray-600">
+                <Text className="text-slate-700 dark:text-gray-200 text-sm mb-2">
+                  Pagado por mí: ${myShare.toFixed(2)}
+                </Text>
+                {otherParticipants.length > 0 ? (
+                  otherParticipants.map((friend) => (
+                    <Text
+                      key={friend.uid || friend.nombre}
+                      className="text-slate-700 dark:text-gray-200 text-sm mb-1"
+                    >
+                      Pagado por {friend.nombre}: ${Number(friend.amount).toFixed(2)}
+                    </Text>
+                  ))
+                ) : (
+                  <Text className="text-slate-700 dark:text-gray-200 text-sm">
+                    No hay otros participantes registrados.
+                  </Text>
+                )}
+              </View>
+            </View>
+          ) : null}
+
+          <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-3">
               <FileText size={22} color="#0f172a" />
-              <Text className="text-slate-800 font-semibold text-base ml-2">Nota</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Nota</Text>
             </View>
-            <Text className="text-slate-500">
+            <Text className="text-slate-500 dark:text-gray-400">
               {transaction.note || 'Sin nota cargada.'}
             </Text>
           </View>
 
-          <View className="bg-white rounded-2xl p-4 mb-10 shadow-sm shadow-slate-200">
+          <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-10 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-3">
               <ImageIcon size={22} color="#0f172a" />
-              <Text className="text-slate-800 font-semibold text-base ml-2">Imagen</Text>
+              <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Imagen</Text>
             </View>
             {transaction.photoUri ? (
               <Image source={{ uri: transaction.photoUri }} className="w-full h-56 rounded-2xl" />
             ) : (
-              <View className="bg-slate-50 border border-slate-100 rounded-2xl h-32 items-center justify-center">
+              <View className="bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600 rounded-2xl h-32 items-center justify-center">
                 <ImageIcon size={28} color="#94a3b8" />
-                <Text className="text-slate-400 mt-2">Sin imagen adjunta</Text>
+                <Text className="text-slate-400 dark:text-gray-500 mt-2">Sin imagen adjunta</Text>
               </View>
             )}
           </View>
