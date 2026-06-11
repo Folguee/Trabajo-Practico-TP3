@@ -7,5 +7,9 @@ export default function NuevoGasto() {
     router.replace({ pathname: '/transaction-form', params: { type: 'expense' } });
   }, []);
 
+<<<<<<< HEAD
   return <View className="flex-1 bg-gray-50 dark:bg-gray-900" />;
+=======
+  return <View className="flex-1 bg-gray-50" />;
+>>>>>>> origin/main
 }

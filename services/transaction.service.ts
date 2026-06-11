@@ -5,12 +5,20 @@ Este archivo es tu “puente” con Firebase (Firestore).
 import { db, auth, getNextNumericId } from './firebase';
 import {
   collection,
+<<<<<<< HEAD
+=======
+  addDoc,
+  deleteDoc,
+>>>>>>> origin/main
   doc,
   getDoc,
   getDocs,
   query,
+<<<<<<< HEAD
   serverTimestamp,
   setDoc,
+=======
+>>>>>>> origin/main
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -77,6 +85,7 @@ export const getTransactions = async (): Promise<Transaction[]> => {
   }));
 };
 
+<<<<<<< HEAD
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'status'>) => {
   const user = auth.currentUser;
   if (!user) {
@@ -107,10 +116,24 @@ export const getTransactionById = async (id: string | number): Promise<Transacti
   return {
     ...(data as Transaction),
     id: Number(data.id ?? Number(id)),
+=======
+export const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
+  await addDoc(collection(db, 'transactions'), transaction);
+};
+
+export const getTransactionById = async (id: string): Promise<Transaction | null> => {
+  const snapshot = await getDoc(doc(db, 'transactions', id));
+  if (!snapshot.exists()) return null;
+
+  return {
+    id: snapshot.id,
+    ...(snapshot.data() as Transaction),
+>>>>>>> origin/main
   };
 };
 
 export const updateTransaction = async (
+<<<<<<< HEAD
   id: string | number,
   transaction: Partial<Omit<Transaction, 'id'>>
 ) => {
@@ -154,4 +177,23 @@ export const deleteTransaction = async (id: string | number): Promise<void> => {
   }
 
   await updateDoc(doc(db, 'transactions', normalizedId), { status: 'eliminado' });
+=======
+  id: string,
+  transaction: Partial<Omit<Transaction, 'id'>>
+) => {
+  await updateDoc(doc(db, 'transactions', id), transaction);
+};
+
+export const deleteTransaction = async (id: string): Promise<void> => {
+  if (!id || id.trim() === '') {
+    throw new Error('ID de transacción inválido o vacío');
+  }
+
+  try {
+    await deleteDoc(doc(db, 'transactions', id));
+  } catch (error) {
+    console.error('[deleteTransaction] Error:', error);
+    throw error;
+  }
+>>>>>>> origin/main
 };

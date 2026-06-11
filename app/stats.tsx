@@ -1,16 +1,23 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+<<<<<<< HEAD
   Alert,
   Dimensions,
   RefreshControl,
   ScrollView,
   Text,
   TextInput,
+=======
+  RefreshControl,
+  ScrollView,
+  Text,
+>>>>>>> origin/main
   TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+<<<<<<< HEAD
 import {
   AlertTriangle,
   ArrowLeft,
@@ -26,14 +33,23 @@ import { getTransactions, Transaction } from '../services/transaction.service';
 import { getCategoryConfig, transactionCategories } from '../constants/transactions';
 import { useBudgetStore } from '../store/budgetStore';
 import { calculateStats } from '../utils/stats';
+=======
+import { ArrowLeft, BarChart3, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native';
+import BottomNav from '../components/BottomNav';
+import { getTransactions, Transaction } from '../services/transaction.service';
+import { getCategoryConfig } from '../constants/transactions';
+>>>>>>> origin/main
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+<<<<<<< HEAD
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
   const { budgets, setBudget } = useBudgetStore();
+=======
+>>>>>>> origin/main
 
   const loadTransactions = useCallback(async () => {
     const result = await getTransactions();
@@ -49,10 +65,32 @@ export default function StatsScreen() {
   );
 
   const stats = useMemo(() => {
+<<<<<<< HEAD
     const computed = calculateStats(transactions);
 
     return {
       ...computed,
+=======
+    const income = transactions
+      .filter((item) => item.type === 'income')
+      .reduce((sum, item) => sum + item.amount, 0);
+    const expenses = transactions
+      .filter((item) => item.type === 'expense')
+      .reduce((sum, item) => sum + item.amount, 0);
+    const expensesByCategory = transactions
+      .filter((item) => item.type === 'expense')
+      .reduce<Record<string, number>>((acc, item) => {
+        const category = item.category || 'Sin categoria';
+        acc[category] = (acc[category] || 0) + item.amount;
+        return acc;
+      }, {});
+
+    return {
+      income,
+      expenses,
+      balance: income - expenses,
+      expensesByCategory: Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]),
+>>>>>>> origin/main
       recentTransactions: transactions.slice(0, 5),
     };
   }, [transactions]);
@@ -67,6 +105,7 @@ export default function StatsScreen() {
     loadTransactions();
   };
 
+<<<<<<< HEAD
   const handleSetBudget = (category: string) => {
     const limit = parseFloat(budgetInput);
     if (isNaN(limit) || limit <= 0) {
@@ -301,5 +340,117 @@ export default function StatsScreen() {
         )}
       </View>
     </SidebarLayout>
+=======
+  return (
+    <View className="flex-1 bg-gray-50">
+      <View className="bg-[#0f172a] pt-14 pb-20 px-6 rounded-b-3xl">
+        <TouchableOpacity className="mb-6" onPress={() => router.back()}>
+          <ArrowLeft size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="text-white text-3xl font-bold mb-2">Estadisticas</Text>
+        <Text className="text-slate-400 text-base">Reportes de tus movimientos</Text>
+      </View>
+
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#0f172a" />
+        </View>
+      ) : (
+        <ScrollView
+          className="flex-1 px-6 pt-6"
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20 mb-6">
+            <Text className="text-white text-lg font-bold mb-2">Balance</Text>
+            <Text className={`${stats.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'} text-4xl font-bold`}>
+              ${stats.balance.toFixed(2)}
+            </Text>
+          </View>
+
+          <View className="flex-row gap-3 mb-6">
+            <View className="bg-white rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200">
+              <View className="bg-emerald-100 w-12 h-12 rounded-full items-center justify-center mb-3">
+                <TrendingUp size={24} color="#10b981" />
+              </View>
+              <Text className="text-slate-400 text-xs mb-1">Ingresos</Text>
+              <Text className="text-emerald-500 font-bold text-lg">${stats.income.toFixed(2)}</Text>
+            </View>
+            <View className="bg-white rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200">
+              <View className="bg-rose-100 w-12 h-12 rounded-full items-center justify-center mb-3">
+                <TrendingDown size={24} color="#f43f5e" />
+              </View>
+              <Text className="text-slate-400 text-xs mb-1">Gastos</Text>
+              <Text className="text-rose-500 font-bold text-lg">${stats.expenses.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          <Text className="text-slate-800 text-lg font-bold mb-4">Gastos por categoria</Text>
+          <View className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200 mb-6">
+            {stats.expensesByCategory.length === 0 ? (
+              <View className="items-center py-8">
+                <BarChart3 size={32} color="#94a3b8" />
+                <Text className="text-slate-400 mt-2">Todavia no hay gastos cargados.</Text>
+              </View>
+            ) : (
+              stats.expensesByCategory.map(([categoryName, amount]) => {
+                const category = getCategoryConfig(categoryName);
+                const Icon = category.icon;
+                const widthPercent = `${Math.max((amount / maxCategoryExpense) * 100, 8)}%` as `${number}%`;
+
+                return (
+                  <View key={categoryName} className="mb-4">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-3">
+                        <View className={`${category.bgColor} w-10 h-10 rounded-full items-center justify-center`}>
+                          <Icon size={20} color={category.iconColor} />
+                        </View>
+                        <Text className="text-slate-800 font-semibold">{categoryName}</Text>
+                      </View>
+                      <Text className="text-rose-500 font-bold">${amount.toFixed(2)}</Text>
+                    </View>
+                    <View className="bg-slate-100 h-3 rounded-full overflow-hidden">
+                      <View className="bg-rose-400 h-3 rounded-full" style={{ width: widthPercent }} />
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          <Text className="text-slate-800 text-lg font-bold mb-4">Movimientos recientes</Text>
+          <View className="bg-white rounded-2xl p-4 shadow-sm shadow-slate-200 mb-10">
+            {stats.recentTransactions.length === 0 ? (
+              <View className="items-center py-8">
+                <Wallet size={32} color="#94a3b8" />
+                <Text className="text-slate-400 mt-2">Sin movimientos cargados.</Text>
+              </View>
+            ) : (
+              stats.recentTransactions.map((transaction) => (
+                <TouchableOpacity
+                  key={transaction.id || `${transaction.title}-${transaction.date}`}
+                  className="flex-row items-center justify-between py-3 border-b border-slate-100"
+                  onPress={() =>
+                    transaction.id &&
+                    router.push({ pathname: '/transaction-detail', params: { id: transaction.id } })
+                  }
+                >
+                  <View>
+                    <Text className="text-slate-800 font-semibold">{transaction.title}</Text>
+                    <Text className="text-slate-400 text-xs mt-1">{transaction.date || 'Sin fecha'}</Text>
+                  </View>
+                  <Text className={`${transaction.type === 'expense' ? 'text-rose-500' : 'text-emerald-500'} font-bold`}>
+                    {transaction.type === 'expense' ? '-' : '+'} ${transaction.amount.toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      )}
+
+      <BottomNav active="stats" />
+    </View>
+>>>>>>> origin/main
   );
 }

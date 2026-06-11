@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+<<<<<<< HEAD
     "types": ["node"],
     "skipLibCheck": true,
     "resolveJsonModule": true
@@ -10,4 +11,8 @@
     "node_modules",
     "**/node_modules"
   ]
+=======
+    "types": ["node"]
+  }
+>>>>>>> origin/main
 }
