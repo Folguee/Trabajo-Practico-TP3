@@ -1,33 +1,36 @@
-/** 
-FRONTEND - Pantalla de bienvenida (landing)
-Esta es la primera pantalla que ve el usuario al abrir la app.
-Muestra dos botones: Iniciar Sesión y Registrarme.
-*/
-
 import { View, Text, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
+import { WalletCards } from 'lucide-react-native';
 
 export default function Index() {
   return (
-    <View className="flex-1 justify-center items-center bg-navy px-6">
-      <Text className="text-3xl font-bold text-center mb-2 text-white">Control de Gastos</Text>
-      <Text className="text-gray-400 text-center mb-12">Administra tus finanzas de forma simple</Text>
+    <View className="flex-1 justify-center items-center bg-gray-50 px-6">
+      
+      <View className="bg-[#0f172a] w-20 h-20 rounded-3xl items-center justify-center mb-6 shadow-sm shadow-slate-300">
+        <WalletCards size={40} color="white" />
+      </View>
+      
+      <Text className="text-4xl font-bold text-center text-slate-800 mb-3 tracking-tight">Control de Gastos</Text>
+      <Text className="text-slate-500 text-center text-base mb-14 px-4">
+        Administra tus finanzas personales de forma simple y en un solo lugar.
+      </Text>
 
-      <View className="w-full space-y-4">
+      <View className="w-full">
         <TouchableOpacity
-          className="bg-blue-600 p-4 rounded-xl items-center active:bg-blue-700"
+          className="bg-[#0f172a] p-4 rounded-xl items-center mb-4 shadow-sm shadow-slate-300"
           onPress={() => router.push('/login')}
         >
-          <Text className="text-white font-semibold text-lg">Iniciar Sesión</Text>
+          <Text className="text-white font-bold text-lg">Iniciar Sesión</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="bg-gray-100 p-4 rounded-xl items-center active:bg-gray-300"
+          className="bg-white border border-slate-200 p-4 rounded-xl items-center"
           onPress={() => router.push('/register')}
         >
-          <Text className="text-navy font-semibold text-lg">Registrarme</Text>
+          <Text className="text-slate-800 font-bold text-lg">Registrarme</Text>
         </TouchableOpacity>
       </View>
+      
     </View>
   );
 }
