@@ -12,15 +12,16 @@ import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
+import { useThemeStore } from "../store/themeStore";
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
+  const theme = useThemeStore((state) => state.theme);
 
   useEffect(() => {
-    // Inicializa el listener del BACKEND para detectar si hay sesión activa
     const unsub = onAuthChange((firebaseUser) => {
       setAuth(firebaseUser);
       setIsReady(true);
@@ -31,15 +32,17 @@ export default function RootLayout() {
 
   if (!isReady) {
     return (
-      <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" />
+      <View className="flex-1 justify-center items-center bg-white dark:bg-gray-900">
+        <ActivityIndicator size="large" color="#0f172a" />
       </View>
     );
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <View className={`flex-1 ${theme === 'dark' ? 'dark' : ''}`}>
+        <Stack screenOptions={{ headerShown: false }} />
+      </View>
     </QueryClientProvider>
   );
 }
