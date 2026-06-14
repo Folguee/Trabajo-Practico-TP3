@@ -34,7 +34,7 @@ import {
   transactionCategories,
 } from '../constants/transactions';
 
-type TransactionType = 'income' | 'expense';
+type TransactionType = 'income' | 'expense' | 'shared';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -157,7 +157,7 @@ export default function TransactionFormScreen() {
       return;
     }
 
-    const payload: Omit<Transaction, 'id'> = {
+    const payload: Omit<Transaction, 'id' | 'status'> = {
       title: title.trim(),
       amount: parsedAmount,
       type,

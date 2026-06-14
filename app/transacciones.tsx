@@ -8,6 +8,10 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
+  Modal,
+  Pressable,
+  Image,
+  Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import {
@@ -15,15 +19,23 @@ import {
   Filter,
   Plus,
   Search,
+  Calendar,
+  FileText,
+  Tag,
+  Trash2,
+  Pencil,
+  X,
+  Download,
 } from 'lucide-react-native';
 import SidebarLayout from '../components/SidebarLayout';
-import { getTransactions, Transaction } from '../services/transaction.service';
+import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
 import {
   formatDateInput,
   getCategoryConfig,
   parseTransactionDate,
   transactionCategories,
 } from '../constants/transactions';
+import TransactionFormSheet from '../components/TransactionFormSheet';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -62,6 +74,44 @@ export default function Transacciones() {
   const [dateTo, setDateTo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formTxId, setFormTxId] = useState<number | null>(null);
+
+  const handleDeleteSelected = async () => {
+    if (!selectedTx?.id) return;
+    
+    const isWeb = typeof window !== 'undefined';
+    const confirmed = isWeb
+      ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
+      : await new Promise<boolean>(resolve => {
+        Alert.alert(
+          'Eliminar movimiento',
+          'Esta acción no se puede deshacer.',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) },
+          ]
+        );
+      });
+
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteTransaction(selectedTx.id);
+      setIsDetailOpen(false);
+      setSelectedTx(null);
+      loadTransactions();
+    } catch (error) {
+      Alert.alert('Error al eliminar', `${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const loadTransactions = useCallback(async () => {
     const result = await getTransactions();
@@ -139,10 +189,10 @@ export default function Transacciones() {
     return (
       <TouchableOpacity
         className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700"
-        onPress={() =>
-          item.id &&
-          router.push({ pathname: '/transaction-detail', params: { id: item.id } })
-        }
+        onPress={() => {
+          setSelectedTx(item);
+          setIsDetailOpen(true);
+        }}
       >
         <View className="flex-row items-center gap-4 flex-1">
           <View className={`${category.bgColor} w-12 h-12 rounded-full items-center justify-center`}>
@@ -180,7 +230,10 @@ export default function Transacciones() {
         </View>
         <TouchableOpacity
           className="bg-[#0f172a] w-12 h-12 rounded-xl items-center justify-center"
-          onPress={() => router.push('/transaction-form')}
+          onPress={() => {
+            setFormTxId(null);
+            setIsFormOpen(true);
+          }}
         >
           <Plus size={20} color="white" />
         </TouchableOpacity>
@@ -338,6 +391,179 @@ export default function Transacciones() {
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      {/* Modal Bottom Sheet para detalles de movimiento */}
+      <Modal
+        visible={isDetailOpen && selectedTx !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsDetailOpen(false)}
+      >
+        <Pressable 
+          className="flex-1 bg-black/60 justify-end md:justify-center md:items-center"
+          onPress={() => setIsDetailOpen(false)}
+        >
+          <Pressable 
+            className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Barra superior de arrastre */}
+            <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 mt-1" />
+            
+            {selectedTx && (() => {
+              const category = getCategoryConfig(selectedTx.category);
+              const Icon = category.icon;
+              const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
+              const isShared = selectedTx.type === 'shared';
+              const sharedTotal = selectedTx.detalleCompartido?.total ?? 0;
+
+              return (
+                <View className="w-full flex-1 flex flex-col">
+                  {/* Encabezado del Modal */}
+                  <View className="flex-row justify-between items-center mb-4">
+                    <Text className="text-slate-800 dark:text-slate-100 text-lg font-bold">Detalle del Movimiento</Text>
+                    <TouchableOpacity 
+                      className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
+                      onPress={() => setIsDetailOpen(false)}
+                    >
+                      <X size={18} color="#64748b" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+                    {/* Tarjeta de Resumen */}
+                    <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
+                      <View className={`${category.bgColor} w-16 h-16 rounded-full items-center justify-center mb-3`}>
+                        <Icon size={28} color={category.iconColor} />
+                      </View>
+                      <Text className="text-slate-800 dark:text-slate-100 text-xl font-bold text-center mb-1">
+                        {selectedTx.title}
+                      </Text>
+                      <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} text-3xl font-extrabold`}>
+                        {isExpense ? '-' : '+'} ${selectedTx.amount.toFixed(2)}
+                      </Text>
+                    </View>
+
+                    {/* Fila: Categoría */}
+                    <View className="flex-row items-center gap-3.5 mb-3 px-1">
+                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
+                        <Tag size={18} color="#64748b" />
+                      </View>
+                      <View>
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Tipo y Categoría</Text>
+                        <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
+                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.category || 'Sin categoría'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Fila: Fecha */}
+                    <View className="flex-row items-center gap-3.5 mb-3 px-1">
+                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
+                        <Calendar size={18} color="#64748b" />
+                      </View>
+                      <View>
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Fecha</Text>
+                        <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
+                          {selectedTx.date || 'Sin fecha'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Fila: Notas */}
+                    <View className="flex-row items-start gap-3.5 mb-3 px-1">
+                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
+                        <FileText size={18} color="#64748b" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Nota</Text>
+                        <Text className="text-slate-700 dark:text-slate-300 text-sm mt-0.5 leading-relaxed">
+                          {selectedTx.note || 'Sin nota cargada.'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Detalle Compartido */}
+                    {isShared && selectedTx.detalleCompartido && (
+                      <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
+                        <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
+                        <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
+                        <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
+                          ${sharedTotal.toFixed(2)}
+                        </Text>
+                        <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
+                          <Text className="text-slate-700 dark:text-slate-350 text-xs">
+                            Pagado por mí: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorMi.toFixed(2)}</Text>
+                          </Text>
+                          <Text className="text-slate-700 dark:text-slate-350 text-xs">
+                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorAmigo.toFixed(2)}</Text>
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Imagen adjunta */}
+                    {selectedTx.photoUri && (
+                      <View className="mt-2 mb-4 px-1">
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs mb-2">Imagen Adjunta</Text>
+                        <Image source={{ uri: selectedTx.photoUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      </View>
+                    )}
+                  </ScrollView>
+
+                  {/* Acciones del Modal */}
+                  <View className="flex-row gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <TouchableOpacity
+                      className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
+                      onPress={() => {
+                        setIsDetailOpen(false);
+                        setFormTxId(selectedTx.id);
+                        setIsFormOpen(true);
+                      }}
+                    >
+                      <Pencil size={16} color="#475569" />
+                      <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
+                      onPress={() => {
+                        setIsDetailOpen(false);
+                        router.push({ pathname: '/exportar', params: { transactionId: selectedTx.id } });
+                      }}
+                    >
+                      <Download size={16} color="#475569" />
+                      <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Exportar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="bg-rose-500 active:bg-rose-600 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
+                      onPress={handleDeleteSelected}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <>
+                          <Trash2 size={16} color="white" />
+                          <Text className="text-white font-bold text-sm">Eliminar</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <TransactionFormSheet
+        visible={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        transactionId={formTxId}
+        onSaveSuccess={loadTransactions}
+      />
     </SidebarLayout>
   );
 }
