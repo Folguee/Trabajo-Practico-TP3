@@ -172,7 +172,7 @@ export default function Dashboard() {
       <View className="flex-row items-center gap-4 flex-1">
         <View className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
         <View className="flex-1 gap-2">
-          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-850 rounded animate-pulse" />
+          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
           <View className="h-3 w-16 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
         </View>
       </View>
@@ -329,7 +329,7 @@ export default function Dashboard() {
 
                   <ScrollView showsVerticalScrollIndicator={false} className="mb-4">
                     {/* Tarjeta de Resumen */}
-                    <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
+                    <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
                       <View className={`${category.bgColor} w-16 h-16 rounded-full items-center justify-center mb-3`}>
                         <Icon size={28} color={category.iconColor} />
                       </View>
@@ -382,7 +382,7 @@ export default function Dashboard() {
 
                     {/* Detalle Compartido */}
                     {isShared && (
-                      <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
+                      <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
                         <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
