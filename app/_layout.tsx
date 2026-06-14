@@ -7,14 +7,11 @@ BACKEND INIT: Escucha cambios de autenticación del servicio backend
 
 import "../global.css";
 import { Stack } from "expo-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
-
-const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -39,10 +36,9 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <View className={`flex-1 ${theme === 'dark' ? 'dark' : ''}`}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </View>
-    </QueryClientProvider>
+    <View className={`flex-1 ${theme === 'dark' ? 'dark' : ''}`}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </View>
   );
 }
+
