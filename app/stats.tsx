@@ -26,6 +26,11 @@ import { getTransactions, Transaction } from '../services/transaction.service';
 import { getCategoryConfig, transactionCategories } from '../constants/transactions';
 import { useBudgetStore } from '../store/budgetStore';
 import { calculateStats } from '../utils/stats';
+import {
+  formatCurrency,
+  formatMoneyInput,
+  validateMoneyInput,
+} from '../utils/money';
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -33,6 +38,7 @@ export default function StatsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
+  const [budgetError, setBudgetError] = useState('');
   const { budgets, setBudget } = useBudgetStore();
 
   const loadTransactions = useCallback(async () => {
@@ -68,18 +74,20 @@ export default function StatsScreen() {
   };
 
   const handleSetBudget = (category: string) => {
-    const limit = parseFloat(budgetInput);
-    if (isNaN(limit) || limit <= 0) {
-      Alert.alert('Error', 'Ingresa un monto válido.');
+    const validation = validateMoneyInput(budgetInput);
+    if (!validation.valid) {
+      setBudgetError(validation.error);
       return;
     }
-    setBudget(category, limit);
+    setBudget(category, validation.value);
     setEditingBudget(null);
     setBudgetInput('');
+    setBudgetError('');
   };
 
   const promptBudget = (category: string, currentLimit: number) => {
-    setBudgetInput(currentLimit > 0 ? currentLimit.toString() : '');
+    setBudgetInput(currentLimit > 0 ? formatMoneyInput(currentLimit) : '');
+    setBudgetError('');
     setEditingBudget(category);
   };
 
@@ -112,7 +120,7 @@ export default function StatsScreen() {
                 <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
               ) : (
                 <Text className={`text-4xl font-extrabold tracking-tight ${stats.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  ${stats.balance.toFixed(2)}
+                  {formatCurrency(stats.balance)}
                 </Text>
               )}
             </View>
@@ -129,7 +137,9 @@ export default function StatsScreen() {
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
                 ) : (
-                  <Text className="text-emerald-500 font-bold text-lg">${stats.income.toFixed(2)}</Text>
+                  <Text className="text-emerald-500 font-bold text-lg">
+                    {formatCurrency(stats.income)}
+                  </Text>
                 )}
               </View>
               <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
@@ -140,7 +150,9 @@ export default function StatsScreen() {
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
                 ) : (
-                  <Text className="text-rose-500 font-bold text-lg">${stats.expenses.toFixed(2)}</Text>
+                  <Text className="text-rose-500 font-bold text-lg">
+                    {formatCurrency(stats.expenses)}
+                  </Text>
                 )}
               </View>
             </View>
@@ -155,14 +167,16 @@ export default function StatsScreen() {
                   <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
                     <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Balance general</Text>
                     <ChartKitPieChart
-                      data={stats.balancePieData}
+                      data={stats.balancePieData.map((item) => ({
+                        ...item,
+                        name: `${item.name}: ${formatCurrency(item.value)}`,
+                      }))}
                       width={Dimensions.get('window').width - 72}
                       height={180}
                       chartConfig={{ color: () => '#334155' }}
                       accessor="value"
                       backgroundColor="transparent"
                       paddingLeft="0"
-                      absolute
                     />
                   </View>
                 )}
@@ -171,14 +185,16 @@ export default function StatsScreen() {
                   <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
                     <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Distribucion de gastos</Text>
                     <ChartKitPieChart
-                      data={stats.pieData}
+                      data={stats.pieData.map((item) => ({
+                        ...item,
+                        name: `${item.name}: ${formatCurrency(item.value)}`,
+                      }))}
                       width={Dimensions.get('window').width - 72}
                       height={200}
                       chartConfig={{ color: () => '#334155' }}
                       accessor="value"
                       backgroundColor="transparent"
                       paddingLeft="0"
-                      absolute
                     />
                   </View>
                 )}
@@ -223,7 +239,8 @@ export default function StatsScreen() {
                         </View>
                         <View className="flex-row items-center gap-2">
                           <Text className="text-slate-500 dark:text-gray-400 text-sm">
-                            ${spent.toFixed(0)}{budgetLimit > 0 ? ` / $${budgetLimit.toFixed(0)}` : ''}
+                            {formatCurrency(spent)}
+                            {budgetLimit > 0 ? ` / ${formatCurrency(budgetLimit)}` : ''}
                           </Text>
                           {isNearLimit && budgetLimit > 0 && (
                             <AlertTriangle size={16} color="#f43f5e" />
@@ -244,28 +261,41 @@ export default function StatsScreen() {
                       )}
 
                       {editingBudget === catName && (
-                        <View className="flex-row items-center gap-2 mt-2">
-                          <TextInput
-                            className="flex-1 bg-slate-50 dark:bg-gray-700 border border-slate-200 dark:border-gray-600 rounded-lg px-3 py-2 text-slate-800 dark:text-gray-100 text-base"
-                            placeholder="Monto limite"
-                            placeholderTextColor="#94a3b8"
-                            keyboardType="numeric"
-                            value={budgetInput}
-                            onChangeText={setBudgetInput}
-                            autoFocus
-                          />
-                          <TouchableOpacity
-                            className="bg-[#0f172a] px-4 py-2 rounded-lg"
-                            onPress={() => handleSetBudget(catName)}
-                          >
-                            <Text className="text-white font-semibold">OK</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            className="bg-slate-200 dark:bg-gray-600 px-4 py-2 rounded-lg"
-                            onPress={() => setEditingBudget(null)}
-                          >
-                            <Text className="text-slate-600 dark:text-gray-300 font-semibold">X</Text>
-                          </TouchableOpacity>
+                        <View className="mt-2">
+                          <View className="flex-row items-center gap-2">
+                            <TextInput
+                              className={`flex-1 bg-slate-50 dark:bg-gray-700 border rounded-lg px-3 py-2 text-slate-800 dark:text-gray-100 text-base ${
+                                budgetError ? 'border-rose-400' : 'border-slate-200 dark:border-gray-600'
+                              }`}
+                              placeholder="Monto límite"
+                              placeholderTextColor="#94a3b8"
+                              keyboardType="decimal-pad"
+                              value={budgetInput}
+                              onChangeText={(value) => {
+                                setBudgetInput(formatMoneyInput(value));
+                                if (budgetError) setBudgetError('');
+                              }}
+                              autoFocus
+                            />
+                            <TouchableOpacity
+                              className="bg-[#0f172a] px-4 py-2 rounded-lg"
+                              onPress={() => handleSetBudget(catName)}
+                            >
+                              <Text className="text-white font-semibold">OK</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              className="bg-slate-200 dark:bg-gray-600 px-4 py-2 rounded-lg"
+                              onPress={() => {
+                                setEditingBudget(null);
+                                setBudgetError('');
+                              }}
+                            >
+                              <Text className="text-slate-600 dark:text-gray-300 font-semibold">X</Text>
+                            </TouchableOpacity>
+                          </View>
+                          {budgetError ? (
+                            <Text className="text-rose-500 text-xs mt-1">{budgetError}</Text>
+                          ) : null}
                         </View>
                       )}
                     </View>
@@ -311,7 +341,9 @@ export default function StatsScreen() {
                           </View>
                           <Text className="text-slate-800 dark:text-gray-100 font-semibold">{categoryName}</Text>
                         </View>
-                        <Text className="text-rose-500 font-bold">${amount.toFixed(2)}</Text>
+                        <Text className="text-rose-500 font-bold">
+                          {formatCurrency(amount)}
+                        </Text>
                       </View>
                       <View className="bg-slate-100 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
                         <View className="bg-rose-400 h-3 rounded-full" style={{ width: widthPercent }} />
@@ -354,7 +386,12 @@ export default function StatsScreen() {
                       <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{transaction.date || 'Sin fecha'}</Text>
                     </View>
                     <Text className={`${transaction.type === 'expense' || transaction.type === 'shared' ? 'text-rose-500' : 'text-emerald-500'} font-bold`}>
-                      {transaction.type === 'expense' || transaction.type === 'shared' ? '-' : '+'} ${transaction.amount.toFixed(2)}
+                      {formatCurrency(transaction.amount, {
+                        sign:
+                          transaction.type === 'expense' || transaction.type === 'shared'
+                            ? 'negative'
+                            : 'positive',
+                      })}
                     </Text>
                   </TouchableOpacity>
                 ))

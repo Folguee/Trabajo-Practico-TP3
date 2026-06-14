@@ -35,6 +35,7 @@ import {
   transactionCategories,
 } from '../constants/transactions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { formatMoneyInput, validateMoneyInput } from '../utils/money';
 
 type TransactionType = 'income' | 'expense' | 'shared';
 
@@ -65,6 +66,7 @@ export default function TransactionFormSheet({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [dateError, setDateError] = useState('');
+  const [amountError, setAmountError] = useState('');
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Cargar transacción si estamos editando
@@ -73,6 +75,7 @@ export default function TransactionFormSheet({
       // Resetear formulario para nueva transacción
       setTitle('');
       setAmount('');
+      setAmountError('');
       setType('expense');
       setCategory(transactionCategories[0].name);
       // Poner fecha de hoy por defecto
@@ -93,7 +96,8 @@ export default function TransactionFormSheet({
       const transaction = await getTransactionById(transactionId);
       if (transaction) {
         setTitle(transaction.title);
-        setAmount(String(transaction.amount));
+        setAmount(formatMoneyInput(transaction.amount));
+        setAmountError('');
         setType(transaction.type);
         setCategory(transaction.category || 'Alimentacion');
         setDate(transaction.date || '');
@@ -167,16 +171,20 @@ export default function TransactionFormSheet({
     }
   };
 
-  const handleSave = async () => {
-    const parsedAmount = Number(amount.replace(',', '.'));
+  const handleAmountChange = (value: string) => {
+    setAmount(formatMoneyInput(value));
+    if (amountError) setAmountError('');
+  };
 
+  const handleSave = async () => {
     if (!title.trim() || !amount.trim() || !category || !date.trim()) {
       Alert.alert('Datos incompletos', 'Completa título, monto, tipo, categoría y fecha.');
       return;
     }
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Monto inválido', 'Ingresa un monto mayor a cero.');
+    const amountValidation = validateMoneyInput(amount);
+    if (!amountValidation.valid) {
+      setAmountError(amountValidation.error);
       return;
     }
 
@@ -192,7 +200,7 @@ export default function TransactionFormSheet({
 
     const payload: Omit<Transaction, 'id' | 'status'> = {
       title: title.trim(),
-      amount: parsedAmount,
+      amount: amountValidation.value,
       type,
       category,
       date: date.trim(),
@@ -256,7 +264,9 @@ export default function TransactionFormSheet({
 
               <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
                 {/* Tarjeta de Monto */}
-                <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-5">
+                <View className={`bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border mb-5 ${
+                  amountError ? 'border-rose-400 dark:border-rose-500' : 'border-slate-100 dark:border-slate-800'
+                }`}>
                   <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Monto</Text>
                   <View className="flex-row items-center justify-center">
                     <DollarSign size={28} color={type === 'expense' ? '#f43f5e' : '#10b981'} />
@@ -268,9 +278,18 @@ export default function TransactionFormSheet({
                       placeholder="0.00"
                       placeholderTextColor="#94a3b8"
                       value={amount}
-                      onChangeText={setAmount}
+                      onChangeText={handleAmountChange}
+                      onBlur={() => {
+                        const validation = validateMoneyInput(amount);
+                        setAmountError(validation.valid ? '' : validation.error);
+                      }}
                     />
                   </View>
+                  {amountError ? (
+                    <Text className="text-rose-500 text-xs mt-2 font-semibold">
+                      {amountError}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Tipo de Movimiento (Gasto / Ingreso) */}

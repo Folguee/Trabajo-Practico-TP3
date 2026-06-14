@@ -36,6 +36,7 @@ import {
   transactionCategories,
 } from '../constants/transactions';
 import TransactionFormSheet from '../components/TransactionFormSheet';
+import { formatCurrency } from '../utils/money';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -55,8 +56,9 @@ const dateFilters: Array<{ label: string; value: DateFilter }> = [
 
 const formatAmount = (transaction: Transaction) => {
   const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
-  const sign = isExpense ? '-' : '+';
-  return `${sign} $${transaction.amount.toFixed(2)}`;
+  return formatCurrency(transaction.amount, {
+    sign: isExpense ? 'negative' : 'positive',
+  });
 };
 
 const isSameDay = (first: Date, second: Date) =>
@@ -440,7 +442,9 @@ export default function Transacciones() {
                         {selectedTx.title}
                       </Text>
                       <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} text-3xl font-extrabold`}>
-                        {isExpense ? '-' : '+'} ${selectedTx.amount.toFixed(2)}
+                        {formatCurrency(selectedTx.amount, {
+                          sign: isExpense ? 'negative' : 'positive',
+                        })}
                       </Text>
                     </View>
 
@@ -489,14 +493,20 @@ export default function Transacciones() {
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
                         <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
-                          ${sharedTotal.toFixed(2)}
+                          {formatCurrency(sharedTotal)}
                         </Text>
                         <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
                           <Text className="text-slate-700 dark:text-slate-350 text-xs">
-                            Pagado por mí: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorMi.toFixed(2)}</Text>
+                            Pagado por mí:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorMi)}
+                            </Text>
                           </Text>
                           <Text className="text-slate-700 dark:text-slate-350 text-xs">
-                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorAmigo.toFixed(2)}</Text>
+                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorAmigo)}
+                            </Text>
                           </Text>
                         </View>
                       </View>

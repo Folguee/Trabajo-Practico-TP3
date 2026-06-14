@@ -33,6 +33,7 @@ import {
   parseTransactionDate,
   transactionCategories,
 } from '../constants/transactions';
+import { formatMoneyInput, validateMoneyInput } from '../utils/money';
 
 type TransactionType = 'income' | 'expense' | 'shared';
 
@@ -58,6 +59,7 @@ export default function TransactionFormScreen() {
   const [isLoading, setIsLoading] = useState(Boolean(id));
   const [isSaving, setIsSaving] = useState(false);
   const [dateError, setDateError] = useState('');
+  const [amountError, setAmountError] = useState('');
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const loadTransaction = useCallback(async () => {
@@ -71,7 +73,8 @@ export default function TransactionFormScreen() {
     }
 
     setTitle(transaction.title);
-    setAmount(String(transaction.amount));
+    setAmount(formatMoneyInput(transaction.amount));
+    setAmountError('');
     setType(transaction.type);
     setCategory(transaction.category || 'Alimentacion');
     setDate(transaction.date || '');
@@ -133,16 +136,20 @@ export default function TransactionFormScreen() {
     }
   };
 
-  const handleSave = async () => {
-    const parsedAmount = Number(amount.replace(',', '.'));
+  const handleAmountChange = (value: string) => {
+    setAmount(formatMoneyInput(value));
+    if (amountError) setAmountError('');
+  };
 
+  const handleSave = async () => {
     if (!title.trim() || !amount.trim() || !category || !date.trim()) {
       Alert.alert('Datos incompletos', 'Completa titulo, monto, tipo, categoria y fecha.');
       return;
     }
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Monto invalido', 'Ingresa un monto mayor a cero.');
+    const amountValidation = validateMoneyInput(amount);
+    if (!amountValidation.valid) {
+      setAmountError(amountValidation.error);
       return;
     }
 
@@ -159,7 +166,7 @@ export default function TransactionFormScreen() {
 
     const payload: Omit<Transaction, 'id' | 'status'> = {
       title: title.trim(),
-      amount: parsedAmount,
+      amount: amountValidation.value,
       type,
       category,
       date: date.trim(),
@@ -206,7 +213,9 @@ export default function TransactionFormScreen() {
         </View>
 
         <View className="px-6 -mt-16">
-          <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20">
+          <View className={`bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20 border ${
+            amountError ? 'border-rose-400' : 'border-transparent'
+          }`}>
             <Text className="text-white text-lg font-bold mb-2">Monto</Text>
             <View className="flex-row items-center justify-center">
               <DollarSign size={32} color={type === 'expense' ? '#fb7185' : '#34d399'} />
@@ -218,9 +227,16 @@ export default function TransactionFormScreen() {
                 placeholder="0.00"
                 placeholderTextColor="#64748b"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={handleAmountChange}
+                onBlur={() => {
+                  const validation = validateMoneyInput(amount);
+                  setAmountError(validation.valid ? '' : validation.error);
+                }}
               />
             </View>
+            {amountError ? (
+              <Text className="text-rose-300 text-sm mt-2 text-center">{amountError}</Text>
+            ) : null}
           </View>
         </View>
 

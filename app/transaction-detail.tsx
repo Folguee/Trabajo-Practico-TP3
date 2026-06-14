@@ -26,6 +26,7 @@ import {
 } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
 import { useAuthStore } from '../store/authStore';
+import { formatCurrency } from '../utils/money';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -180,7 +181,9 @@ export default function TransactionDetailScreen() {
               {transaction.title}
             </Text>
             <Text className={`${isExpense ? 'text-rose-400' : 'text-emerald-400'} text-4xl font-bold`}>
-              {isExpense ? '-' : '+'} ${transaction.amount.toFixed(2)}
+              {formatCurrency(transaction.amount, {
+                sign: isExpense ? 'negative' : 'positive',
+              })}
             </Text>
           </View>
         </View>
@@ -220,14 +223,15 @@ export default function TransactionDetailScreen() {
               </View>
               <Text className="text-slate-500 dark:text-gray-400 text-sm mb-2">Monto total original</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-bold text-xl mb-4">
-                ${sharedTotal.toFixed(2)}
+                {formatCurrency(sharedTotal)}
               </Text>
               <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-3 border border-slate-100 dark:border-gray-600">
                 <Text className="text-slate-700 dark:text-gray-200 text-sm mb-2">
-                  Pagado por mí: ${transaction.detalleCompartido.pagadoPorMi.toFixed(2)}
+                  Pagado por mí: {formatCurrency(transaction.detalleCompartido.pagadoPorMi)}
                 </Text>
                 <Text className="text-slate-700 dark:text-gray-200 text-sm">
-                  Pagado por {transaction.detalleCompartido.amigo?.nombre || 'Amigo'}: ${transaction.detalleCompartido.pagadoPorAmigo.toFixed(2)}
+                  Pagado por {transaction.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
+                  {formatCurrency(transaction.detalleCompartido.pagadoPorAmigo)}
                 </Text>
               </View>
             </View>

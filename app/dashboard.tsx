@@ -31,6 +31,7 @@ import {
 import SidebarLayout from '../components/SidebarLayout';
 import { LinearGradient } from 'expo-linear-gradient';
 import TransactionFormSheet from '../components/TransactionFormSheet';
+import { formatCurrency } from '../utils/money';
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -165,7 +166,7 @@ export default function Dashboard() {
         </View>
         <View className="items-end ml-3">
           <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-sm`}>
-            {isExpense ? '-' : '+'}${item.amount.toFixed(2)}
+            {formatCurrency(item.amount, { sign: isExpense ? 'negative' : 'positive' })}
           </Text>
           <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.category || 'Sin categoría'}</Text>
         </View>
@@ -214,7 +215,7 @@ export default function Dashboard() {
                 <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
               ) : (
                 <Text className={`text-4xl font-extrabold tracking-tight mb-6 ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  ${balance.toFixed(2)}
+                  {formatCurrency(balance)}
                 </Text>
               )}
 
@@ -227,7 +228,9 @@ export default function Dashboard() {
                   {isLoading ? (
                     <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
                   ) : (
-                    <Text className="text-emerald-500 font-bold text-sm">+ ${totalIncome.toFixed(2)}</Text>
+                    <Text className="text-emerald-500 font-bold text-sm">
+                      {formatCurrency(totalIncome, { sign: 'positive' })}
+                    </Text>
                   )}
                 </View>
                 <View className="flex-1 items-center">
@@ -238,7 +241,9 @@ export default function Dashboard() {
                   {isLoading ? (
                     <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
                   ) : (
-                    <Text className="text-rose-500 font-bold text-sm">- ${totalExpense.toFixed(2)}</Text>
+                    <Text className="text-rose-500 font-bold text-sm">
+                      {formatCurrency(totalExpense, { sign: 'negative' })}
+                    </Text>
                   )}
                 </View>
               </View>
@@ -345,7 +350,9 @@ export default function Dashboard() {
                         {selectedTx.title}
                       </Text>
                       <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} text-3xl font-extrabold`}>
-                        {isExpense ? '-' : '+'} ${selectedTx.amount.toFixed(2)}
+                        {formatCurrency(selectedTx.amount, {
+                          sign: isExpense ? 'negative' : 'positive',
+                        })}
                       </Text>
                     </View>
 
@@ -394,14 +401,20 @@ export default function Dashboard() {
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
                         <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
-                          ${sharedTotal.toFixed(2)}
+                          {formatCurrency(sharedTotal)}
                         </Text>
                         <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
                           <Text className="text-slate-700 dark:text-slate-300 text-xs">
-                            Pagado por mí: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorMi.toFixed(2)}</Text>
+                            Pagado por mí:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorMi)}
+                            </Text>
                           </Text>
                           <Text className="text-slate-700 dark:text-slate-300 text-xs">
-                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}: <Text className="font-bold">${selectedTx.detalleCompartido.pagadoPorAmigo.toFixed(2)}</Text>
+                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorAmigo)}
+                            </Text>
                           </Text>
                         </View>
                       </View>
