@@ -30,6 +30,8 @@ import {
 } from 'lucide-react-native';
 import SidebarLayout from '../components/SidebarLayout';
 import { LinearGradient } from 'expo-linear-gradient';
+import TransactionFormSheet from '../components/TransactionFormSheet';
+import { formatCurrency } from '../utils/money';
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -37,6 +39,8 @@ export default function Dashboard() {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formTxId, setFormTxId] = useState<number | null>(null);
 
   const loadTransactions = useCallback(async () => {
     const result = await getTransactions();
@@ -124,7 +128,10 @@ export default function Dashboard() {
       </Text>
       <TouchableOpacity
         className="bg-indigo-600 active:bg-indigo-700 rounded-xl px-6 py-3.5 flex-row items-center gap-2 shadow-md shadow-indigo-600/10"
-        onPress={() => router.push('/transaction-form')}
+        onPress={() => {
+          setFormTxId(null);
+          setIsFormOpen(true);
+        }}
       >
         <Plus size={18} color="white" />
         <Text className="text-white font-semibold">Registrar movimiento</Text>
@@ -159,7 +166,7 @@ export default function Dashboard() {
         </View>
         <View className="items-end ml-3">
           <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-sm`}>
-            {isExpense ? '-' : '+'}${item.amount.toFixed(2)}
+            {formatCurrency(item.amount, { sign: isExpense ? 'negative' : 'positive' })}
           </Text>
           <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.category || 'Sin categoría'}</Text>
         </View>
@@ -172,7 +179,7 @@ export default function Dashboard() {
       <View className="flex-row items-center gap-4 flex-1">
         <View className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
         <View className="flex-1 gap-2">
-          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-850 rounded animate-pulse" />
           <View className="h-3 w-16 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
         </View>
       </View>
@@ -208,7 +215,7 @@ export default function Dashboard() {
                 <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
               ) : (
                 <Text className={`text-4xl font-extrabold tracking-tight mb-6 ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  ${balance.toFixed(2)}
+                  {formatCurrency(balance)}
                 </Text>
               )}
 
@@ -221,7 +228,9 @@ export default function Dashboard() {
                   {isLoading ? (
                     <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
                   ) : (
-                    <Text className="text-emerald-500 font-bold text-sm">+ ${totalIncome.toFixed(2)}</Text>
+                    <Text className="text-emerald-500 font-bold text-sm">
+                      {formatCurrency(totalIncome, { sign: 'positive' })}
+                    </Text>
                   )}
                 </View>
                 <View className="flex-1 items-center">
@@ -232,7 +241,9 @@ export default function Dashboard() {
                   {isLoading ? (
                     <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
                   ) : (
-                    <Text className="text-rose-500 font-bold text-sm">- ${totalExpense.toFixed(2)}</Text>
+                    <Text className="text-rose-500 font-bold text-sm">
+                      {formatCurrency(totalExpense, { sign: 'negative' })}
+                    </Text>
                   )}
                 </View>
               </View>
@@ -244,7 +255,10 @@ export default function Dashboard() {
             <Text className="text-slate-800 dark:text-slate-200 text-lg font-bold mb-3">Acciones Rápidas</Text>
             <TouchableOpacity
               className="bg-[#0f172a] active:bg-slate-800 rounded-2xl p-4 flex-row items-center justify-center gap-2 shadow-md"
-              onPress={() => router.push('/transaction-form')}
+              onPress={() => {
+                setFormTxId(null);
+                setIsFormOpen(true);
+              }}
             >
               <Plus size={20} color="white" />
               <Text className="text-white font-bold text-base">Ingresar nuevo ingreso/gasto</Text>
@@ -300,7 +314,7 @@ export default function Dashboard() {
           onPress={() => setIsDetailOpen(false)}
         >
           <Pressable 
-            className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
+            className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
             onPress={(e) => e.stopPropagation()}
           >
             {/* Barra superior de arrastre */}
@@ -311,11 +325,10 @@ export default function Dashboard() {
               const Icon = category.icon;
               const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
               const isShared = selectedTx.type === 'shared';
-              const sharedFriends = selectedTx.detalleCompartido?.amigos ?? [];
               const sharedTotal = selectedTx.detalleCompartido?.total ?? 0;
 
               return (
-                <View className="w-full">
+                <View className="w-full flex-1 flex flex-col">
                   {/* Encabezado del Modal */}
                   <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-slate-800 dark:text-slate-100 text-lg font-bold">Detalle del Movimiento</Text>
@@ -327,9 +340,9 @@ export default function Dashboard() {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView showsVerticalScrollIndicator={false} className="mb-4">
+                  <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
                     {/* Tarjeta de Resumen */}
-                    <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
+                    <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
                       <View className={`${category.bgColor} w-16 h-16 rounded-full items-center justify-center mb-3`}>
                         <Icon size={28} color={category.iconColor} />
                       </View>
@@ -337,7 +350,9 @@ export default function Dashboard() {
                         {selectedTx.title}
                       </Text>
                       <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} text-3xl font-extrabold`}>
-                        {isExpense ? '-' : '+'} ${selectedTx.amount.toFixed(2)}
+                        {formatCurrency(selectedTx.amount, {
+                          sign: isExpense ? 'negative' : 'positive',
+                        })}
                       </Text>
                     </View>
 
@@ -381,22 +396,27 @@ export default function Dashboard() {
                     </View>
 
                     {/* Detalle Compartido */}
-                    {isShared && (
-                      <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
+                    {isShared && selectedTx.detalleCompartido && (
+                      <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
                         <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
-                          ${sharedTotal.toFixed(2)}
+                          {formatCurrency(sharedTotal)}
                         </Text>
-                        {sharedFriends.length > 0 && (
-                          <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
-                            {sharedFriends.map((friend) => (
-                              <Text key={friend.uid || friend.nombre} className="text-slate-700 dark:text-slate-300 text-xs">
-                                Pagado por {friend.nombre}: <Text className="font-bold">${Number(friend.amount).toFixed(2)}</Text>
-                              </Text>
-                            ))}
-                          </View>
-                        )}
+                        <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
+                          <Text className="text-slate-700 dark:text-slate-300 text-xs">
+                            Pagado por mí:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorMi)}
+                            </Text>
+                          </Text>
+                          <Text className="text-slate-700 dark:text-slate-300 text-xs">
+                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
+                            <Text className="font-bold">
+                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorAmigo)}
+                            </Text>
+                          </Text>
+                        </View>
                       </View>
                     )}
 
@@ -415,7 +435,8 @@ export default function Dashboard() {
                       className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
                       onPress={() => {
                         setIsDetailOpen(false);
-                        router.push({ pathname: '/transaction-form', params: { id: selectedTx.id } });
+                        setFormTxId(selectedTx.id);
+                        setIsFormOpen(true);
                       }}
                     >
                       <Pencil size={16} color="#475569" />
@@ -454,6 +475,13 @@ export default function Dashboard() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <TransactionFormSheet
+        visible={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        transactionId={formTxId}
+        onSaveSuccess={loadTransactions}
+      />
     </SidebarLayout>
   );
 }
