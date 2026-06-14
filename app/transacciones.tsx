@@ -115,6 +115,22 @@ export default function Transacciones() {
     loadTransactions();
   };
 
+  const renderSkeletonTransaction = (key: number) => (
+    <View key={key} className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 opacity-60">
+      <View className="flex-row items-center gap-4 flex-1">
+        <View className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+        <View className="flex-1 gap-2">
+          <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+          <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+        </View>
+      </View>
+      <View className="items-end gap-2 ml-3">
+        <View className="h-4.5 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+        <View className="h-3 w-16 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+      </View>
+    </View>
+  );
+
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const category = getCategoryConfig(item.category);
     const Icon = category.icon;
@@ -269,7 +285,11 @@ export default function Transacciones() {
 
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold">Movimientos</Text>
-        <Text className="text-slate-400 dark:text-gray-500 font-semibold">{filteredTransactions.length}</Text>
+        {isLoading ? (
+          <View className="h-5 w-8 bg-slate-250 dark:bg-gray-700 rounded animate-pulse" />
+        ) : (
+          <Text className="text-slate-400 dark:text-gray-500 font-semibold">{filteredTransactions.length}</Text>
+        )}
       </View>
     </View>
   );
@@ -277,23 +297,30 @@ export default function Transacciones() {
   return (
     <SidebarLayout active="transacciones">
       <View className="flex-1">
-        <View className="bg-[#0f172a] pt-14 pb-20 px-6 rounded-b-3xl">
-          <Text className="text-white text-3xl font-bold mb-2">Transacciones</Text>
-          <Text className="text-slate-400 text-base">Revisa tus movimientos</Text>
+        <View className="bg-[#0f172a] pt-16 pb-24 px-6 rounded-b-[32px] md:pt-14 md:pb-20 shadow-sm">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Text className="text-white text-3xl font-extrabold tracking-tight mb-1">Transacciones</Text>
+              <Text className="text-slate-400 text-sm">Revisa tus movimientos y gastos</Text>
+            </View>
+            <View className="bg-slate-800/80 p-2.5 rounded-full border border-slate-700/50 hidden md:flex">
+              <Filter size={20} color="#818cf8" />
+            </View>
+          </View>
         </View>
 
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#0f172a" />
-          </View>
-        ) : (
-          <FlatList
-            className="flex-1 px-6 pt-6"
-            data={filteredTransactions}
-            keyExtractor={(item, index) => String(item.id || `${item.title}-${index}`)}
-            renderItem={renderTransaction}
-            ListHeaderComponent={ListHeader}
-            ListEmptyComponent={
+        <FlatList
+          className="flex-1 px-6 pt-6"
+          data={isLoading ? [] : filteredTransactions}
+          keyExtractor={(item, index) => String(item.id || `${item.title}-${index}`)}
+          renderItem={renderTransaction}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={
+            isLoading ? (
+              <View>
+                {[1, 2, 3, 4].map(renderSkeletonTransaction)}
+              </View>
+            ) : (
               <View className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
                 <Text className="text-slate-800 dark:text-gray-100 font-semibold text-lg mb-2">
                   Sin movimientos
@@ -302,14 +329,14 @@ export default function Transacciones() {
                   No hay transacciones para los filtros seleccionados.
                 </Text>
               </View>
-            }
-            ListFooterComponent={<View className="h-10" />}
-            refreshControl={
-              <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-            }
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+            )
+          }
+          ListFooterComponent={<View className="h-10" />}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          }
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     </SidebarLayout>
   );

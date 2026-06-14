@@ -86,80 +86,118 @@ export default function StatsScreen() {
   return (
     <SidebarLayout active="stats">
       <View className="flex-1">
-        <View className="bg-[#0f172a] pt-14 pb-20 px-6 rounded-b-3xl">
-          <Text className="text-white text-3xl font-bold mb-2">Estadisticas</Text>
-          <Text className="text-slate-400 text-base">Reportes de tus movimientos</Text>
-        </View>
-
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#0f172a" />
-          </View>
-        ) : (
-          <ScrollView
-            className="flex-1 px-6 pt-6"
-            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-            showsVerticalScrollIndicator={false}
-          >
-            <View className="bg-[#1e293b] rounded-2xl p-6 shadow-lg shadow-slate-900/20 mb-6">
-              <Text className="text-white text-lg font-bold mb-2">Balance</Text>
-              <Text className={`${stats.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'} text-4xl font-bold`}>
-                ${stats.balance.toFixed(2)}
-              </Text>
+        <ScrollView
+          className="flex-1"
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Cabecera / Banner superior - Consistente con las demás pantallas (Sólido Navy #0f172a) */}
+          <View className="bg-[#0f172a] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View>
+                <Text className="text-white text-3xl font-extrabold tracking-tight mb-1">Estadísticas</Text>
+                <Text className="text-slate-400 text-sm">Reportes y análisis de tus movimientos</Text>
+              </View>
+              <View className="bg-slate-800/80 p-2.5 rounded-full border border-slate-700/50 hidden md:flex">
+                <BarChart3 size={20} color="#818cf8" />
+              </View>
             </View>
+          </View>
 
+          {/* Tarjeta de Balance principal (Estilo unificado con el Dashboard, flotando sobre el banner) */}
+          <View className="px-6 -mt-16 mb-6">
+            <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[120px] justify-center">
+              <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Balance Total</Text>
+              {isLoading ? (
+                <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
+              ) : (
+                <Text className={`text-4xl font-extrabold tracking-tight ${stats.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  ${stats.balance.toFixed(2)}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Contenido Principal con Spacing */}
+          <View className="px-6">
             <View className="flex-row gap-3 mb-6">
               <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
                 <View className="bg-emerald-100 w-12 h-12 rounded-full items-center justify-center mb-3">
                   <TrendingUp size={24} color="#10b981" />
                 </View>
                 <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Ingresos</Text>
-                <Text className="text-emerald-500 font-bold text-lg">${stats.income.toFixed(2)}</Text>
+                {isLoading ? (
+                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
+                ) : (
+                  <Text className="text-emerald-500 font-bold text-lg">${stats.income.toFixed(2)}</Text>
+                )}
               </View>
               <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
                 <View className="bg-rose-100 w-12 h-12 rounded-full items-center justify-center mb-3">
                   <TrendingDown size={24} color="#f43f5e" />
                 </View>
                 <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Gastos</Text>
-                <Text className="text-rose-500 font-bold text-lg">${stats.expenses.toFixed(2)}</Text>
+                {isLoading ? (
+                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
+                ) : (
+                  <Text className="text-rose-500 font-bold text-lg">${stats.expenses.toFixed(2)}</Text>
+                )}
               </View>
             </View>
 
-            {stats.balancePieData.length > 0 && (
-              <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
-                <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Balance general</Text>
-                <ChartKitPieChart
-                  data={stats.balancePieData}
-                  width={Dimensions.get('window').width - 72}
-                  height={180}
-                  chartConfig={{ color: () => '#334155' }}
-                  accessor="value"
-                  backgroundColor="transparent"
-                  paddingLeft="0"
-                  absolute
-                />
+            {isLoading ? (
+              <View className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center min-h-[220px] justify-center">
+                <View className="w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
               </View>
-            )}
+            ) : (
+              <>
+                {stats.balancePieData.length > 0 && (
+                  <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
+                    <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Balance general</Text>
+                    <ChartKitPieChart
+                      data={stats.balancePieData}
+                      width={Dimensions.get('window').width - 72}
+                      height={180}
+                      chartConfig={{ color: () => '#334155' }}
+                      accessor="value"
+                      backgroundColor="transparent"
+                      paddingLeft="0"
+                      absolute
+                    />
+                  </View>
+                )}
 
-            {stats.pieData.length > 0 && (
-              <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
-                <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Distribucion de gastos</Text>
-                <ChartKitPieChart
-                  data={stats.pieData}
-                  width={Dimensions.get('window').width - 72}
-                  height={200}
-                  chartConfig={{ color: () => '#334155' }}
-                  accessor="value"
-                  backgroundColor="transparent"
-                  paddingLeft="0"
-                  absolute
-                />
-              </View>
+                {stats.pieData.length > 0 && (
+                  <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
+                    <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Distribucion de gastos</Text>
+                    <ChartKitPieChart
+                      data={stats.pieData}
+                      width={Dimensions.get('window').width - 72}
+                      height={200}
+                      chartConfig={{ color: () => '#334155' }}
+                      accessor="value"
+                      backgroundColor="transparent"
+                      paddingLeft="0"
+                      absolute
+                    />
+                  </View>
+                )}
+              </>
             )}
 
             <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Presupuestos por categoria</Text>
             <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6">
-              {transactionCategories.filter((c) => c.name !== 'Ingresos').length === 0 ? (
+              {isLoading ? (
+                [1, 2, 3].map((i) => (
+                  <View key={i} className="flex-row items-center justify-between mb-4 opacity-60">
+                    <View className="flex-row items-center gap-3">
+                      <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                      <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                    </View>
+                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  </View>
+                ))
+              ) : transactionCategories.filter((c) => c.name !== 'Ingresos').length === 0 ? (
                 <View className="items-center py-8">
                   <Wallet size={32} color="#94a3b8" />
                   <Text className="text-slate-400 dark:text-gray-500 mt-2">No hay categorias disponibles.</Text>
@@ -238,7 +276,22 @@ export default function StatsScreen() {
 
             <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Gastos por categoria</Text>
             <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6">
-              {stats.expensesByCategory.length === 0 ? (
+              {isLoading ? (
+                [1, 2, 3].map((i) => (
+                  <View key={i} className="mb-4 opacity-60">
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center gap-3">
+                        <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                        <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                      </View>
+                      <View className="h-4.5 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                    </View>
+                    <View className="bg-slate-100 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
+                      <View className="bg-slate-200 dark:bg-slate-700 h-3 rounded-full animate-pulse" style={{ width: '40%' }} />
+                    </View>
+                  </View>
+                ))
+              ) : stats.expensesByCategory.length === 0 ? (
                 <View className="items-center py-8">
                   <BarChart3 size={32} color="#94a3b8" />
                   <Text className="text-slate-400 dark:text-gray-500 mt-2">Todavia no hay gastos cargados.</Text>
@@ -271,7 +324,17 @@ export default function StatsScreen() {
 
             <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Movimientos recientes</Text>
             <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-10">
-              {stats.recentTransactions.length === 0 ? (
+              {isLoading ? (
+                [1, 2, 3].map((i) => (
+                  <View key={i} className="flex-row items-center justify-between py-3 border-b border-slate-100 dark:border-gray-700 opacity-60">
+                    <View className="gap-2">
+                      <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                      <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+                    </View>
+                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  </View>
+                ))
+              ) : stats.recentTransactions.length === 0 ? (
                 <View className="items-center py-8">
                   <Wallet size={32} color="#94a3b8" />
                   <Text className="text-slate-400 dark:text-gray-500 mt-2">Sin movimientos cargados.</Text>
@@ -297,8 +360,8 @@ export default function StatsScreen() {
                 ))
               )}
             </View>
-          </ScrollView>
-        )}
+          </View>
+        </ScrollView>
       </View>
     </SidebarLayout>
   );
