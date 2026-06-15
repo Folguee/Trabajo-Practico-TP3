@@ -89,16 +89,7 @@ export default function TransactionFormSheet({
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
   const [amountError, setAmountError] = useState('');
-  const [categoryError, setCategoryError] = useState('');
-  const [sharedError, setSharedError] = useState('');
-  const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [usersError, setUsersError] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState<PublicUser[]>([]);
-  const [userSearch, setUserSearch] = useState('');
-  const [payerUid, setPayerUid] = useState('');
-  const [splitMode, setSplitMode] = useState<SharedSplitMode>('equal');
-  const [splitValues, setSplitValues] = useState<Record<string, string>>({});
+ 
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
