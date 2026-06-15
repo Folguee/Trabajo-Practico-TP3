@@ -45,7 +45,7 @@ export default function Index() {
       {/* Contenedor de fondo con posicionamiento fixed en web para evitar que se desplace al hacer scroll */}
       <View
         style={{
-          position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+          position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
@@ -159,4 +159,3 @@ export default function Index() {
     </View>
   );
 }
-

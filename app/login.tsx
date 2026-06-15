@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, Image, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { login } from '../services/auth.service';
-import { Wallet, Eye, EyeOff } from 'lucide-react-native';
+import { Wallet, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const loginSchema = z.object({
@@ -19,6 +19,7 @@ const BG_IMG = require('../assets/fondo-finanzas.png');
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const passwordRef = useRef<any>(null);
   const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema) as any,
@@ -26,26 +27,30 @@ export default function Login() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    setErrorMessage(null);
     try {
       await login(data.email, data.password);
       router.replace('/dashboard');
     } catch (error: any) {
-      let message = 'Error al iniciar sesion';
+      let message = 'Error al iniciar sesión';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         message = 'Email o contraseña incorrectos';
       } else if (error.code === 'auth/invalid-email') {
-        message = 'Email invalido';
+        message = 'Email inválido';
+      } else if (error.message) {
+        message = error.message;
       }
-      Alert.alert('Error', message);
+      setErrorMessage(message);
     }
   };
+
 
   return (
     <View className="flex-1 bg-slate-950">
       {/* Contenedor de fondo con posicionamiento fixed en web para evitar que se desplace al hacer scroll */}
       <View
         style={{
-          position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+          position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
@@ -119,6 +124,15 @@ export default function Login() {
                 </View>
                 <Text className="text-2xl font-bold text-center text-slate-800 dark:text-gray-100 mb-1">Bienvenido</Text>
                 <Text className="text-sm text-slate-500 dark:text-gray-400 text-center mb-6">Inicia sesión para continuar</Text>
+
+                {errorMessage && (
+                  <View className="w-full flex-row items-center bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4">
+                    <AlertCircle size={20} color="#ef4444" style={{ marginRight: 8 }} />
+                    <Text className="text-rose-600 dark:text-rose-400 text-sm font-medium flex-1">
+                      {errorMessage}
+                    </Text>
+                  </View>
+                )}
 
                 <View className="w-full mb-4">
                   <Text className="text-slate-700 dark:text-gray-300 font-medium mb-1.5 ml-1 text-sm">Email</Text>
