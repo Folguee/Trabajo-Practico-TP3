@@ -139,7 +139,10 @@ describe('Pruebas unitarias - Transaction Service', () => {
     await deleteTransaction('tx_123');
 
     expect(getDoc).toHaveBeenCalledTimes(1);
-    expect(updateDoc).toHaveBeenCalledWith(undefined, { status: 'eliminado' });
+    expect(updateDoc).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ status: 'eliminado', updatedAt: expect.anything() })
+    );
   });
 
   // --- TEST 5: TRANSACCIÓN COMPARTIDA ---

@@ -252,8 +252,8 @@ export default function TransactionDetailScreen() {
               <ImageIcon size={22} color="#0f172a" />
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Imagen</Text>
             </View>
-            {transaction.photoUri ? (
-              <Image source={{ uri: transaction.photoUri }} className="w-full h-56 rounded-2xl" />
+            {transaction.imageUrl ? (
+              <Image source={{ uri: transaction.imageUrl }} className="w-full h-56 rounded-2xl" />
             ) : (
               <View className="bg-slate-50 dark:bg-gray-700 border border-slate-100 dark:border-gray-600 rounded-2xl h-32 items-center justify-center">
                 <ImageIcon size={28} color="#94a3b8" />

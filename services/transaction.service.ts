@@ -14,6 +14,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { deleteReceipt, resolveReceiptUrl } from './receipt.service';
 
 export type Transaction = {
   id: number;
@@ -23,7 +24,8 @@ export type Transaction = {
   date?: string;
   category?: string;
   note?: string;
-  photoUri?: string;
+  imagePath?: string | null;
+  imageUrl?: string;
   userId: string;
   myShare?: number;
   creatorUid?: string;
@@ -64,10 +66,16 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((docSnap) => ({
-    ...(docSnap.data() as Transaction),
-    id: Number(docSnap.data().id ?? 0),
-  }));
+  return Promise.all(
+    snapshot.docs.map(async (docSnap) => {
+      const data = docSnap.data() as Transaction;
+      return {
+        ...data,
+        id: Number(data.id ?? 0),
+        imageUrl: await resolveReceiptUrl(data.imagePath),
+      };
+    })
+  );
 };
 
 export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'status'>) => {
@@ -100,6 +108,7 @@ export const getTransactionById = async (id: string | number): Promise<Transacti
   return {
     ...(data as Transaction),
     id: Number(data.id ?? Number(id)),
+    imageUrl: await resolveReceiptUrl(data.imagePath),
   };
 };
 
@@ -122,7 +131,10 @@ export const updateTransaction = async (
     throw new Error('No tienes permiso para modificar esta transacción');
   }
 
-  await updateDoc(doc(db, 'transactions', String(id)), transaction);
+  await updateDoc(doc(db, 'transactions', String(id)), {
+    ...transaction,
+    updatedAt: serverTimestamp(),
+  });
 };
 
 export const deleteTransaction = async (id: string | number): Promise<void> => {
@@ -146,5 +158,16 @@ export const deleteTransaction = async (id: string | number): Promise<void> => {
     throw new Error('No tienes permiso para eliminar esta transacción');
   }
 
-  await updateDoc(doc(db, 'transactions', normalizedId), { status: 'eliminado' });
+  await updateDoc(doc(db, 'transactions', normalizedId), {
+    status: 'eliminado',
+    updatedAt: serverTimestamp(),
+  });
+
+  if (data.imagePath) {
+    try {
+      await deleteReceipt(data.imagePath);
+    } catch (error) {
+      console.warn('No se pudo eliminar el comprobante remoto:', error);
+    }
+  }
 };

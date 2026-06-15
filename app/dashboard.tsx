@@ -19,7 +19,6 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ChevronRight,
-  Sparkles,
   Calendar,
   FileText,
   Tag,
@@ -200,9 +199,6 @@ export default function Dashboard() {
               <View>
                 <Text className="text-white text-3xl font-bold mb-1 tracking-tight">Control de Gastos</Text>
                 <Text className="text-slate-400 text-sm">Gestiona tus finanzas personales</Text>
-              </View>
-              <View className="bg-slate-800/80 p-2.5 rounded-full border border-slate-700/50 hidden md:flex">
-                <Sparkles size={20} color="#818cf8" />
               </View>
             </View>
           </View>
@@ -421,10 +417,10 @@ export default function Dashboard() {
                     )}
 
                     {/* Imagen adjunta */}
-                    {selectedTx.photoUri && (
+                    {selectedTx.imageUrl && (
                       <View className="mt-2 mb-4 px-1">
                         <Text className="text-slate-400 dark:text-slate-500 text-xs mb-2">Imagen Adjunta</Text>
-                        <Image source={{ uri: selectedTx.photoUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                        <Image source={{ uri: selectedTx.imageUrl }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
                       </View>
                     )}
                   </ScrollView>

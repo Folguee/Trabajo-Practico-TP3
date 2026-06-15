@@ -12,14 +12,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import {
   Calendar as CalendarIcon,
   Camera,
   Check,
   DollarSign,
   FileText,
+  Images,
   Tag,
+  Trash2,
   X,
 } from 'lucide-react-native';
 import {
@@ -36,6 +37,11 @@ import {
 } from '../constants/transactions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMoneyInput, validateMoneyInput } from '../utils/money';
+import { deleteReceipt, uploadReceipt } from '../services/receipt.service';
+import {
+  pickReceiptFromLibrary,
+  takeReceiptPhoto,
+} from '../services/receipt-picker.service';
 
 type TransactionType = 'income' | 'expense' | 'shared';
 
@@ -62,7 +68,10 @@ export default function TransactionFormSheet({
   const [category, setCategory] = useState(transactionCategories[0].name);
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
-  const [photoUri, setPhotoUri] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState('');
+  const [selectedImageMimeType, setSelectedImageMimeType] = useState<string | null>(null);
+  const [originalImagePath, setOriginalImagePath] = useState<string | null>(null);
+  const [imageChanged, setImageChanged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [dateError, setDateError] = useState('');
@@ -85,7 +94,10 @@ export default function TransactionFormSheet({
       const yearStr = today.getFullYear();
       setDate(`${dayStr}/${monthStr}/${yearStr}`);
       setNote('');
-      setPhotoUri('');
+      setSelectedImageUri('');
+      setSelectedImageMimeType(null);
+      setOriginalImagePath(null);
+      setImageChanged(false);
       setDateError('');
       setIsLoading(false);
       return;
@@ -102,7 +114,10 @@ export default function TransactionFormSheet({
         setCategory(transaction.category || 'Alimentacion');
         setDate(transaction.date || '');
         setNote(transaction.note || '');
-        setPhotoUri(transaction.photoUri || '');
+        setSelectedImageUri(transaction.imageUrl || '');
+        setSelectedImageMimeType(null);
+        setOriginalImagePath(transaction.imagePath || null);
+        setImageChanged(false);
         setDateError('');
       } else {
         Alert.alert('No encontrado', 'El movimiento ya no existe.');
@@ -127,21 +142,34 @@ export default function TransactionFormSheet({
     setCategory(nextType === 'income' ? 'Ingresos' : 'Alimentacion');
   };
 
+  const setPickedPhoto = (picked: { uri: string; mimeType?: string | null }) => {
+    setSelectedImageUri(picked.uri);
+    setSelectedImageMimeType(picked.mimeType || null);
+    setImageChanged(true);
+  };
+
   const handlePickPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tus fotos para adjuntar una imagen.');
-      return;
+    try {
+      const picked = await pickReceiptFromLibrary();
+      if (picked) setPickedPhoto(picked);
+    } catch (error) {
+      Alert.alert('Permiso requerido', error instanceof Error ? error.message : 'No se pudo abrir la galeria.');
     }
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-
-    if (!result.canceled) {
-      setPhotoUri(result.assets[0]?.uri || '');
+  const handleTakePhoto = async () => {
+    try {
+      const picked = await takeReceiptPhoto();
+      if (picked) setPickedPhoto(picked);
+    } catch (error) {
+      Alert.alert('Permiso requerido', error instanceof Error ? error.message : 'No se pudo abrir la camara.');
     }
+  };
+
+  const handleRemovePhoto = () => {
+    setSelectedImageUri('');
+    setSelectedImageMimeType(null);
+    setImageChanged(true);
   };
 
   const triggerShake = () => {
@@ -198,27 +226,52 @@ export default function TransactionFormSheet({
       return;
     }
 
-    const payload: Omit<Transaction, 'id' | 'status'> = {
-      title: title.trim(),
-      amount: amountValidation.value,
-      type,
-      category,
-      date: date.trim(),
-      note: note.trim(),
-      photoUri,
-      userId: user.uid,
-    };
-
+    let uploadedImagePath: string | null = null;
     try {
       setIsSaving(true);
+      if (imageChanged && selectedImageUri) {
+        uploadedImagePath = await uploadReceipt({
+          uri: selectedImageUri,
+          mimeType: selectedImageMimeType,
+        });
+      }
+
+      const nextImagePath = imageChanged ? uploadedImagePath : originalImagePath;
+      const payload: Omit<Transaction, 'id' | 'status'> = {
+        title: title.trim(),
+        amount: amountValidation.value,
+        type,
+        category,
+        date: date.trim(),
+        note: note.trim(),
+        imagePath: nextImagePath,
+        userId: user.uid,
+      };
+
       if (transactionId) {
         await updateTransaction(transactionId, payload);
       } else {
         await addTransaction(payload);
       }
+
+      if (imageChanged && originalImagePath && originalImagePath !== uploadedImagePath) {
+        try {
+          await deleteReceipt(originalImagePath);
+        } catch (error) {
+          console.warn('No se pudo eliminar el comprobante anterior:', error);
+        }
+      }
+
       onSaveSuccess();
       onClose();
     } catch (error) {
+      if (uploadedImagePath) {
+        try {
+          await deleteReceipt(uploadedImagePath);
+        } catch {
+          // The orphan can be cleaned up later if rollback fails.
+        }
+      }
       Alert.alert('Error', `No se pudo guardar el movimiento: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
       setIsSaving(false);
@@ -414,15 +467,34 @@ export default function TransactionFormSheet({
                       <Camera size={18} color="#64748b" />
                       <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Foto Adjunta</Text>
                     </View>
-                    <TouchableOpacity
-                      className="bg-[#0f172a] dark:bg-slate-800 rounded-xl px-4 py-2 border border-slate-200 dark:border-slate-700 active:opacity-85"
-                      onPress={handlePickPhoto}
-                    >
-                      <Text className="text-white dark:text-slate-300 font-semibold text-xs">Seleccionar</Text>
-                    </TouchableOpacity>
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5"
+                        onPress={handleTakePhoto}
+                        accessibilityLabel="Tomar foto"
+                      >
+                        <Camera size={17} color="#475569" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickPhoto}
+                        accessibilityLabel="Elegir de la galeria"
+                      >
+                        <Images size={17} color="white" />
+                      </TouchableOpacity>
+                      {selectedImageUri ? (
+                        <TouchableOpacity
+                          className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
+                          onPress={handleRemovePhoto}
+                          accessibilityLabel="Quitar foto"
+                        >
+                          <Trash2 size={17} color="#f43f5e" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                   </View>
-                  {photoUri ? (
-                    <Image source={{ uri: photoUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                  {selectedImageUri ? (
+                    <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
                   ) : (
                     <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
                       <Camera size={24} color="#94a3b8" />
