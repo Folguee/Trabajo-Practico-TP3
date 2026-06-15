@@ -1,5 +1,6 @@
 export type TransactionType = 'income' | 'expense' | 'shared';
 export type CategoryType = 'income' | 'expense';
+export type SharedSplitMode = 'equal' | 'amount' | 'percentage';
 
 export type Category = {
   id: string;
@@ -8,6 +9,19 @@ export type Category = {
   type: CategoryType;
   color: string;
   icon: string;
+};
+
+export type PublicUser = {
+  uid: string;
+  nombre: string;
+  nombreLower: string;
+};
+
+export type SharedParticipant = {
+  uid: string;
+  nombre: string;
+  amount: number;
+  percentage: number;
 };
 
 export type SharedTransactionDetail = {
@@ -33,6 +47,11 @@ export type Transaction = {
   imageUrl?: string;
   userId: string;
   creatorUid?: string;
+  participantUids?: string[];
+  participants?: SharedParticipant[];
+  payerUid?: string;
+  totalAmount?: number;
+  splitMode?: SharedSplitMode;
   parteCreador?: number;
   parteAmigo?: number;
   detalleCompartido?: SharedTransactionDetail;
