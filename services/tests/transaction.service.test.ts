@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  addDoc,
   deleteDoc,
   getDoc,
   getDocs,
   orderBy,
-  setDoc,
   Timestamp,
 } from 'firebase/firestore';
 import {
@@ -12,7 +12,6 @@ import {
   deleteTransaction,
   getTransactions,
 } from '../transaction.service';
-import { auth, getNextNumericId } from '../firebase';
 import { resolveReceiptUrl } from '../receipt.service';
 
 const mockUser = { uid: 'user_universidad_123' };
@@ -23,6 +22,7 @@ vi.mock('firebase/firestore', async () => {
   );
   return {
     ...actual,
+    addDoc: vi.fn().mockResolvedValue({ id: 'auto-id' }),
     collection: vi.fn(),
     deleteDoc: vi.fn(),
     doc: vi.fn(),
@@ -43,7 +43,6 @@ vi.mock('../firebase', () => ({
       return mockUser.uid ? mockUser : null;
     },
   },
-  getNextNumericId: vi.fn().mockResolvedValue(1),
 }));
 
 vi.mock('../receipt.service', () => ({
@@ -69,15 +68,15 @@ describe('Transaction Service', () => {
   });
 
   it('guarda la fecha como Timestamp y fuerza el UID autenticado', async () => {
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(7);
+    vi.mocked(addDoc).mockResolvedValueOnce({ id: 'auto-id-7' } as never);
 
-    await addTransaction(baseInput);
+    const id = await addTransaction(baseInput);
 
-    expect(setDoc).toHaveBeenCalledWith(
+    expect(id).toBe('auto-id-7');
+    expect(addDoc).toHaveBeenCalledWith(
       undefined,
       expect.objectContaining({
         ...baseInput,
-        id: 7,
         userId: mockUser.uid,
         date: expect.any(Timestamp),
         createdAt: 'SERVER_TIMESTAMP',
@@ -115,7 +114,7 @@ describe('Transaction Service', () => {
     const transactions = await getTransactions();
 
     expect(orderBy).toHaveBeenCalledWith('date', 'desc');
-    expect(transactions.map((item) => item.id)).toEqual([2, 1]);
+    expect(transactions.map((item) => item.id)).toEqual(['2', '1']);
     expect(transactions[0].date).toEqual(firstDate);
   });
 
@@ -175,7 +174,7 @@ describe('Transaction Service', () => {
       },
     });
 
-    expect(setDoc).toHaveBeenCalledWith(
+    expect(addDoc).toHaveBeenCalledWith(
       undefined,
       expect.objectContaining({
         userId: mockUser.uid,

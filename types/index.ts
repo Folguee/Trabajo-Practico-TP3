@@ -21,7 +21,7 @@ export type SharedTransactionDetail = {
 };
 
 export type Transaction = {
-  id: number;
+  id: string;
   type: TransactionType;
   amount: number;
   title: string;

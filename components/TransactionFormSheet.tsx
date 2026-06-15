@@ -44,7 +44,7 @@ import type { Category, TransactionType } from '../types';
 interface TransactionFormSheetProps {
   visible: boolean;
   onClose: () => void;
-  transactionId?: number | null;
+  transactionId?: string | null;
   onSaveSuccess: () => void;
   initialType?: 'income' | 'expense';
 }

@@ -1,4 +1,5 @@
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -7,14 +8,13 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import type { Transaction, TransactionInput } from '../types';
 import { firestoreDateToDate } from '../utils/date';
-import { auth, db, getNextNumericId } from './firebase';
+import { auth, db } from './firebase';
 import { deleteReceipt, resolveReceiptUrl } from './receipt.service';
 
 export type { Transaction, TransactionInput } from '../types';
@@ -43,7 +43,7 @@ const mapTransaction = async (
 
   return {
     ...(raw as Omit<Transaction, 'id' | 'date' | 'imageUrl'>),
-    id: Number(raw.id ?? id),
+    id,
     date: firestoreDateToDate(raw.date),
     createdAt: raw.createdAt ? firestoreDateToDate(raw.createdAt) : undefined,
     updatedAt: raw.updatedAt ? firestoreDateToDate(raw.updatedAt) : undefined,
@@ -66,20 +66,19 @@ export async function getTransactions(): Promise<Transaction[]> {
   );
 }
 
-export async function addTransaction(input: TransactionInput): Promise<number> {
+export async function addTransaction(input: TransactionInput): Promise<string> {
   const user = requireUser();
-  const nextId = await getNextNumericId('transactionIdCounter');
 
-  await setDoc(doc(db, 'transactions', String(nextId)), {
+  // Firestore genera un ID único automáticamente (sin contador global).
+  const ref = await addDoc(collection(db, 'transactions'), {
     ...input,
-    id: nextId,
     userId: user.uid,
     date: Timestamp.fromDate(input.date),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 
-  return nextId;
+  return ref.id;
 }
 
 export async function getTransactionById(

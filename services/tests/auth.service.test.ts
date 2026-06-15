@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { register, loginWithGoogle } from '../auth.service';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDocs } from 'firebase/firestore';
-import { db, getNextNumericId } from '../firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { ensureDefaultCategories } from '../category.service';
 
 /*
@@ -27,17 +27,14 @@ vi.mock('firebase/firestore', async () => {
     ...actual,
     doc: vi.fn(),
     setDoc: vi.fn(),
-    collection: vi.fn(),
-    query: vi.fn(),
-    where: vi.fn(),
-    getDocs: vi.fn(),
+    getDoc: vi.fn(),
+    serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
   };
 });
 
 vi.mock('../firebase', () => ({
   db: {},
   auth: {},
-  getNextNumericId: vi.fn().mockResolvedValue(1),
 }));
 
 vi.mock('../category.service', () => ({
@@ -59,8 +56,7 @@ describe('Auth Service - registro', () => {
 
     vi.mocked(createUserWithEmailAndPassword).mockResolvedValueOnce({ user: mockUser } as any);
     vi.mocked(updateProfile).mockResolvedValueOnce(undefined as any);
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(1);
-    vi.mocked(doc).mockReturnValueOnce({} as any);
+    vi.mocked(doc).mockReturnValue({} as any);
     vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
 
     const user = await register(name, email, password, phone);
@@ -88,9 +84,8 @@ describe('Auth Service - registro', () => {
     // Log del objeto enviado a Firestore
     console.log('\n[TEST FIRESTORE] Objeto guardado en Firestore por el test:', JSON.stringify(firestorePayload, null, 2));
 
-    expect(doc).toHaveBeenCalledWith(db, 'users', '1');
+    expect(doc).toHaveBeenCalledWith(db, 'users', user.uid);
     expect(setDoc).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      id: 1,
       uid: user.uid,
       nombre: name,
       telefono: phone,
@@ -114,21 +109,18 @@ describe('Auth Service - login con Google', () => {
     };
 
     vi.mocked(signInWithPopup).mockResolvedValueOnce({ user: mockUser } as any);
-    // Simula que el usuario no existe en Firestore (query vacía)
-    vi.mocked(getDocs).mockResolvedValueOnce({ empty: true } as any);
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(2);
-    vi.mocked(doc).mockReturnValueOnce({} as any);
+    // Simula que el usuario no existe en Firestore (doc inexistente)
+    vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => false } as any);
+    vi.mocked(doc).mockReturnValue({} as any);
     vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
 
     const user = await loginWithGoogle();
 
     expect(signInWithPopup).toHaveBeenCalledTimes(1);
-    expect(getDocs).toHaveBeenCalledTimes(1);
-    expect(getNextNumericId).toHaveBeenCalledTimes(1);
+    expect(getDoc).toHaveBeenCalledTimes(1);
     expect(setDoc).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
-        id: 2,
         uid: 'google_uid_123',
         nombre: 'Google User',
         telefono: '987654321',
@@ -148,13 +140,12 @@ describe('Auth Service - login con Google', () => {
 
     vi.mocked(signInWithPopup).mockResolvedValueOnce({ user: mockUser } as any);
     // Simula que el usuario sí existe en Firestore
-    vi.mocked(getDocs).mockResolvedValueOnce({ empty: false } as any);
+    vi.mocked(getDoc).mockResolvedValueOnce({ exists: () => true } as any);
 
     const user = await loginWithGoogle();
 
     expect(signInWithPopup).toHaveBeenCalledTimes(1);
-    expect(getDocs).toHaveBeenCalledTimes(1);
-    expect(getNextNumericId).not.toHaveBeenCalled();
+    expect(getDoc).toHaveBeenCalledTimes(1);
     expect(setDoc).not.toHaveBeenCalled();
     expect(user.uid).toBe('google_uid_existing');
   });

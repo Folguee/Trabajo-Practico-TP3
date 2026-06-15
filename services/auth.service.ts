@@ -14,8 +14,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db, getNextNumericId } from './firebase';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import { ensureDefaultCategories } from './category.service';
 
 // --- Login con email y contraseña ---
@@ -34,10 +34,8 @@ export async function register(
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName: name });
 
-  const nextId = await getNextNumericId('userIdCounter');
-
-  await setDoc(doc(db, 'users', String(nextId)), {
-    id: nextId,
+  // El documento se indexa por uid: es único por usuario y evita duplicados.
+  await setDoc(doc(db, 'users', result.user.uid), {
     uid: result.user.uid,
     nombre: name,
     telefono: phone,
@@ -55,16 +53,13 @@ export async function loginWithGoogle(): Promise<User> {
   const result = await signInWithPopup(auth, provider);
   const user = result.user;
 
-  // Verificar si el usuario ya existe en Firestore
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef, where('uid', '==', user.uid));
-  const querySnapshot = await getDocs(q);
+  // Verificar si el usuario ya existe en Firestore (lookup directo por uid)
+  const userRef = doc(db, 'users', user.uid);
+  const existing = await getDoc(userRef);
 
-  if (querySnapshot.empty) {
+  if (!existing.exists()) {
     // Si no existe, creamos su perfil con los datos de Google
-    const nextId = await getNextNumericId('userIdCounter');
-    await setDoc(doc(db, 'users', String(nextId)), {
-      id: nextId,
+    await setDoc(userRef, {
       uid: user.uid,
       nombre: user.displayName || user.email?.split('@')[0] || 'Usuario Google',
       telefono: user.phoneNumber || '',
@@ -88,4 +83,3 @@ export function onAuthChange(
 ): () => void {
   return onAuthStateChanged(auth, callback);
 }
-

@@ -84,7 +84,7 @@ export default function Transacciones() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formTxId, setFormTxId] = useState<number | null>(null);
+  const [formTxId, setFormTxId] = useState<string | null>(null);
 
   const handleDeleteSelected = async () => {
     if (!selectedTx?.id) return;
