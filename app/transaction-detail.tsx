@@ -28,6 +28,7 @@ import { getCategoryConfig } from '../constants/transactions';
 import { useAuthStore } from '../store/authStore';
 import { formatCurrency } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
+import SharedExpenseDetail from '../components/SharedExpenseDetail';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -143,12 +144,8 @@ export default function TransactionDetailScreen() {
   const Icon = category.icon;
   const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
   const currentUserId = currentUser?.uid;
-  const myShare = Number(
-    currentUserId === transaction.creatorUid
-      ? transaction.parteCreador ?? 0
-      : transaction.parteAmigo ?? 0
-  );
-  const sharedTotal = transaction.detalleCompartido?.total ?? 0;
+  const canManage =
+    transaction.type !== 'shared' || transaction.creatorUid === currentUserId;
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -159,22 +156,26 @@ export default function TransactionDetailScreen() {
               <ArrowLeft size={24} color="white" />
             </TouchableOpacity>
             <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={() => router.push({ pathname: '/transaction-form', params: { id } })}
-              >
-                <Pencil size={23} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete()}
-                disabled={isDeleting}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Trash2 size={23} color="white" />
-                )}
-              </TouchableOpacity>
+              {canManage ? (
+                <>
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/transaction-form', params: { id } })}
+                  >
+                    <Pencil size={23} color="white" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete()}
+                    disabled={isDeleting}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    {isDeleting ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Trash2 size={23} color="white" />
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : null}
             </View>
           </View>
           <Text className="text-white text-3xl font-bold mb-2">Detalle</Text>
@@ -224,27 +225,10 @@ export default function TransactionDetailScreen() {
             </View>
           </View>
 
-          {transaction.type === 'shared' && transaction.detalleCompartido ? (
-            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
-              <View className="flex-row items-center mb-3">
-                <Wallet size={22} color="#0f172a" />
-                <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base ml-2">Detalle compartido</Text>
-              </View>
-              <Text className="text-slate-500 dark:text-gray-400 text-sm mb-2">Monto total original</Text>
-              <Text className="text-slate-800 dark:text-gray-100 font-bold text-xl mb-4">
-                {formatCurrency(sharedTotal)}
-              </Text>
-              <View className="bg-slate-50 dark:bg-gray-700 rounded-2xl p-3 border border-slate-100 dark:border-gray-600">
-                <Text className="text-slate-700 dark:text-gray-200 text-sm mb-2">
-                  Pagado por mí: {formatCurrency(transaction.detalleCompartido.pagadoPorMi)}
-                </Text>
-                <Text className="text-slate-700 dark:text-gray-200 text-sm">
-                  Pagado por {transaction.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
-                  {formatCurrency(transaction.detalleCompartido.pagadoPorAmigo)}
-                </Text>
-              </View>
-            </View>
-          ) : null}
+          <SharedExpenseDetail
+            transaction={transaction}
+            currentUserUid={currentUserId}
+          />
 
           <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
             <View className="flex-row items-center mb-3">
