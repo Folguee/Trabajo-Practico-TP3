@@ -7,7 +7,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "Tests": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

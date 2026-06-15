@@ -421,10 +421,10 @@ export default function Dashboard() {
                     )}
 
                     {/* Imagen adjunta */}
-                    {selectedTx.photoUri && (
+                    {selectedTx.imageUrl && (
                       <View className="mt-2 mb-4 px-1">
                         <Text className="text-slate-400 dark:text-slate-500 text-xs mb-2">Imagen Adjunta</Text>
-                        <Image source={{ uri: selectedTx.photoUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                        <Image source={{ uri: selectedTx.imageUrl }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
                       </View>
                     )}
                   </ScrollView>
