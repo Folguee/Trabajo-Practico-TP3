@@ -25,7 +25,7 @@ export default function TransactionFormScreen() {
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <TransactionFormSheet
         visible={visible}
-        transactionId={id ? Number(id) : null}
+        transactionId={id ?? null}
         initialType={initialType}
         onClose={close}
         onSaveSuccess={() => undefined}
