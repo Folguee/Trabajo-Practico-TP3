@@ -237,4 +237,31 @@ describe('Transaction Service', () => {
     expect(transactions[0].amount).toBe(3000);
     expect(transactions[0].totalAmount).toBe(10000);
   });
+
+  it('mantiene los movimientos personales si falla la consulta compartida', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(getDocs)
+      .mockResolvedValueOnce({
+        docs: [
+          {
+            id: 'personal-1',
+            data: () => ({
+              ...baseInput,
+              userId: mockUser.uid,
+              date: Timestamp.fromDate(baseInput.date),
+            }),
+          },
+        ],
+      } as never)
+      .mockRejectedValueOnce(new Error('Missing or insufficient permissions'));
+
+    const transactions = await getTransactions();
+
+    expect(transactions.map((item) => item.id)).toEqual(['personal-1']);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'No se pudieron cargar los movimientos compartidos:',
+      expect.any(Error)
+    );
+    warnSpy.mockRestore();
+  });
 });
