@@ -6,7 +6,7 @@ describe('calculateStats', () => {
     const now = new Date(2026, 5, 15);
     const transactions = [
       {
-        id: 1,
+        id: 'tx-1',
         title: 'Sueldo',
         type: 'income' as const,
         amount: 100000,
@@ -14,7 +14,7 @@ describe('calculateStats', () => {
         date: new Date(2026, 5, 1),
       },
       {
-        id: 2,
+        id: 'tx-2',
         title: 'Supermercado',
         type: 'expense' as const,
         amount: 20000,
@@ -22,7 +22,7 @@ describe('calculateStats', () => {
         date: new Date(2026, 5, 4),
       },
       {
-        id: 3,
+        id: 'tx-3',
         title: 'Cena compartida',
         type: 'shared' as const,
         amount: -10000,
@@ -30,7 +30,7 @@ describe('calculateStats', () => {
         date: new Date(2026, 5, 7),
       },
       {
-        id: 4,
+        id: 'tx-4',
         title: 'Viaje anterior',
         type: 'expense' as const,
         amount: 90000,
