@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicUser } from '../../types';
-import { calculateSharedParticipants } from '../../utils/shared-expense';
+import {
+  calculateSharedParticipants,
+  validateAndCalculateSharedParticipants,
+} from '../../utils/shared-expense';
 
 const users: PublicUser[] = [
   { uid: 'creator', nombre: 'Creador', nombreLower: 'creador' },
@@ -63,5 +66,61 @@ describe('shared expense split', () => {
         { uid: 'friend-2', value: 50 },
       ])
     ).toThrow('100%');
+  });
+
+  it('valida pagador y campos manuales antes de calcular el reparto', () => {
+    expect(() =>
+      validateAndCalculateSharedParticipants(
+        100,
+        users,
+        '',
+        'equal',
+        {}
+      )
+    ).toThrow('quién pagó');
+
+    expect(() =>
+      validateAndCalculateSharedParticipants(
+        100,
+        users,
+        'creator',
+        'amount',
+        {
+          creator: '50',
+          'friend-1': '',
+          'friend-2': '50',
+        }
+      )
+    ).toThrow('Completa el monto de Ana');
+  });
+
+  it('rechaza valores manuales no numéricos o iguales a cero', () => {
+    expect(() =>
+      validateAndCalculateSharedParticipants(
+        100,
+        users,
+        'creator',
+        'percentage',
+        {
+          creator: '50',
+          'friend-1': 'texto',
+          'friend-2': '50',
+        }
+      )
+    ).toThrow('porcentaje mayor a cero para Ana');
+
+    expect(() =>
+      validateAndCalculateSharedParticipants(
+        100,
+        users,
+        'creator',
+        'amount',
+        {
+          creator: '50',
+          'friend-1': '0',
+          'friend-2': '50',
+        }
+      )
+    ).toThrow('monto mayor a cero para Ana');
   });
 });
