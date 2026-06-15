@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { router } from 'expo-router';
 import {
     Calendar,
@@ -57,8 +57,16 @@ export default function Perfil() {
 
                     <View className="px-6 -mt-16">
                         <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl items-center">
-                            <View className="w-24 h-24 rounded-full bg-[#0f172a] dark:bg-indigo-600 items-center justify-center mb-4 shadow-sm">
-                                <Text className="text-white text-3xl font-extrabold">{initials}</Text>
+                            <View className="w-24 h-24 rounded-full bg-[#0f172a] dark:bg-indigo-600 items-center justify-center mb-4 shadow-sm overflow-hidden">
+                                {user?.photoURL ? (
+                                    <Image
+                                        source={{ uri: user.photoURL }}
+                                        className="w-full h-full"
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Text className="text-white text-3xl font-extrabold">{initials}</Text>
+                                )}
                             </View>
 
                             <Text className="text-slate-800 dark:text-slate-100 text-2xl font-bold text-center mb-1">{displayName}</Text>

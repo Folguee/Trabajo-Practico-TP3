@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { register } from '../auth.service';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { register, loginWithGoogle } from '../auth.service';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc, getDocs } from 'firebase/firestore';
 import { db, getNextNumericId } from '../firebase';
 import { ensureDefaultCategories } from '../category.service';
 
@@ -16,6 +16,8 @@ vi.mock('firebase/auth', async () => {
     ...actual,
     createUserWithEmailAndPassword: vi.fn(),
     updateProfile: vi.fn(),
+    signInWithPopup: vi.fn(),
+    GoogleAuthProvider: vi.fn(),
   };
 });
 
@@ -25,6 +27,10 @@ vi.mock('firebase/firestore', async () => {
     ...actual,
     doc: vi.fn(),
     setDoc: vi.fn(),
+    collection: vi.fn(),
+    query: vi.fn(),
+    where: vi.fn(),
+    getDocs: vi.fn(),
   };
 });
 
@@ -93,3 +99,64 @@ describe('Auth Service - registro', () => {
     expect(ensureDefaultCategories).toHaveBeenCalledWith(user.uid);
   });
 });
+
+describe('Auth Service - login con Google', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('debería autenticar al usuario y crear registro en Firestore si es nuevo', async () => {
+    const mockUser = {
+      uid: 'google_uid_123',
+      email: 'google@user.com',
+      displayName: 'Google User',
+      phoneNumber: '987654321',
+    };
+
+    vi.mocked(signInWithPopup).mockResolvedValueOnce({ user: mockUser } as any);
+    // Simula que el usuario no existe en Firestore (query vacía)
+    vi.mocked(getDocs).mockResolvedValueOnce({ empty: true } as any);
+    vi.mocked(getNextNumericId).mockResolvedValueOnce(2);
+    vi.mocked(doc).mockReturnValueOnce({} as any);
+    vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
+
+    const user = await loginWithGoogle();
+
+    expect(signInWithPopup).toHaveBeenCalledTimes(1);
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(getNextNumericId).toHaveBeenCalledTimes(1);
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        id: 2,
+        uid: 'google_uid_123',
+        nombre: 'Google User',
+        telefono: '987654321',
+        email: 'google@user.com',
+      })
+    );
+    expect(ensureDefaultCategories).toHaveBeenCalledWith('google_uid_123');
+    expect(user.uid).toBe('google_uid_123');
+  });
+
+  it('debería autenticar al usuario y NO crear registro en Firestore si ya existe', async () => {
+    const mockUser = {
+      uid: 'google_uid_existing',
+      email: 'existing@user.com',
+      displayName: 'Existing User',
+    };
+
+    vi.mocked(signInWithPopup).mockResolvedValueOnce({ user: mockUser } as any);
+    // Simula que el usuario sí existe en Firestore
+    vi.mocked(getDocs).mockResolvedValueOnce({ empty: false } as any);
+
+    const user = await loginWithGoogle();
+
+    expect(signInWithPopup).toHaveBeenCalledTimes(1);
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(getNextNumericId).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+    expect(user.uid).toBe('google_uid_existing');
+  });
+});
+
