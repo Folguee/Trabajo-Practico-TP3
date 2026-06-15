@@ -22,6 +22,8 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  UserPlus,
+  Users,
   X,
 } from 'lucide-react-native';
 import {
@@ -42,7 +44,15 @@ import {
   takeReceiptPhoto,
 } from '../services/receipt-picker.service';
 import { getCategories } from '../services/category.service';
-import type { Category, TransactionType } from '../types';
+import { getPublicUsers } from '../services/user-directory.service';
+import { auth } from '../services/firebase';
+import { calculateSharedParticipants } from '../utils/shared-expense';
+import type {
+  Category,
+  PublicUser,
+  SharedSplitMode,
+  TransactionType,
+} from '../types';
 
 interface TransactionFormSheetProps {
   visible: boolean;
@@ -82,14 +92,39 @@ export default function TransactionFormSheet({
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
   const [ocrCompletedFields, setOcrCompletedFields] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<PublicUser[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [payerUid, setPayerUid] = useState('');
+  const [splitMode, setSplitMode] = useState<SharedSplitMode>('equal');
+  const [splitValues, setSplitValues] = useState<Record<string, string>>({});
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Cargar transacción si estamos editando
   const loadTransaction = useCallback(async () => {
     setIsLoading(true);
     try {
-      const loadedCategories = await getCategories();
+      const [loadedCategories, loadedUsers] = await Promise.all([
+        getCategories(),
+        getPublicUsers(),
+      ]);
       setCategories(loadedCategories);
+      setPublicUsers(loadedUsers);
+      const currentUser = auth.currentUser;
+      const me: PublicUser | null = currentUser
+        ? {
+            uid: currentUser.uid,
+            nombre:
+              currentUser.displayName ||
+              currentUser.email?.split('@')[0] ||
+              'Yo',
+            nombreLower: (
+              currentUser.displayName ||
+              currentUser.email?.split('@')[0] ||
+              'Yo'
+            ).toLocaleLowerCase('es'),
+          }
+        : null;
 
       if (!transactionId) {
         const defaultCategory =
@@ -110,13 +145,35 @@ export default function TransactionFormSheet({
         setOcrError(null);
         setOcrWarnings([]);
         setOcrCompletedFields([]);
+        setSelectedUsers(me ? [me] : []);
+        setPayerUid(me?.uid || '');
+        setSplitMode('equal');
+        setSplitValues({});
+        setUserSearch('');
         return;
       }
 
       const transaction = await getTransactionById(transactionId);
       if (transaction) {
+        if (
+          transaction.type === 'shared' &&
+          transaction.creatorUid !== currentUser?.uid
+        ) {
+          Alert.alert(
+            'Solo lectura',
+            'Solo el creador puede editar este gasto compartido.'
+          );
+          onClose();
+          return;
+        }
         setTitle(transaction.title);
-        setAmount(formatMoneyInput(transaction.amount));
+        setAmount(
+          formatMoneyInput(
+            transaction.type === 'shared'
+              ? transaction.totalAmount || transaction.amount
+              : transaction.amount
+          )
+        );
         setAmountError('');
         setType(transaction.type);
         setCategoryId(transaction.categoryId);
@@ -130,6 +187,34 @@ export default function TransactionFormSheet({
         setOcrError(null);
         setOcrWarnings([]);
         setOcrCompletedFields([]);
+        if (transaction.type === 'shared' && transaction.participants) {
+          setSelectedUsers(
+            transaction.participants.map((participant) => ({
+              uid: participant.uid,
+              nombre: participant.nombre,
+              nombreLower: participant.nombre.toLocaleLowerCase('es'),
+            }))
+          );
+          setPayerUid(transaction.payerUid || transaction.creatorUid || '');
+          setSplitMode(transaction.splitMode || 'equal');
+          setSplitValues(
+            Object.fromEntries(
+              transaction.participants.map((participant) => [
+                participant.uid,
+                String(
+                  transaction.splitMode === 'percentage'
+                    ? participant.percentage
+                    : participant.amount
+                ),
+              ])
+            )
+          );
+        } else {
+          setSelectedUsers(me ? [me] : []);
+          setPayerUid(me?.uid || '');
+          setSplitMode('equal');
+          setSplitValues({});
+        }
       } else {
         Alert.alert('No encontrado', 'El movimiento ya no existe.');
         onClose();
@@ -333,6 +418,26 @@ export default function TransactionFormSheet({
     if (amountError) setAmountError('');
   };
 
+  const addSharedUser = (user: PublicUser) => {
+    setSelectedUsers((current) =>
+      current.some((item) => item.uid === user.uid)
+        ? current
+        : [...current, user]
+    );
+    setUserSearch('');
+  };
+
+  const removeSharedUser = (uid: string) => {
+    if (uid === auth.currentUser?.uid) return;
+    setSelectedUsers((current) => current.filter((item) => item.uid !== uid));
+    setSplitValues((current) => {
+      const next = { ...current };
+      delete next[uid];
+      return next;
+    });
+    if (payerUid === uid) setPayerUid(auth.currentUser?.uid || '');
+  };
+
   const handleSave = async () => {
     if (!title.trim() || !amount.trim() || !categoryId || !date.trim()) {
       Alert.alert('Datos incompletos', 'Completa título, monto, tipo, categoría y fecha.');
@@ -373,15 +478,47 @@ export default function TransactionFormSheet({
         throw new Error('La categoria seleccionada ya no existe');
       }
 
+      const sharedParticipants =
+        type === 'shared'
+          ? calculateSharedParticipants(
+              amountValidation.value,
+              selectedUsers,
+              splitMode,
+              selectedUsers.map((user) => ({
+                uid: user.uid,
+                value: Number(splitValues[user.uid] || 0),
+              }))
+            )
+          : undefined;
+
+      if (type === 'shared' && !selectedUsers.some((user) => user.uid === payerUid)) {
+        throw new Error('Selecciona quien pago el gasto');
+      }
+
       const payload: TransactionInput = {
         title: title.trim(),
-        amount: amountValidation.value,
+        amount:
+          type === 'shared'
+            ? sharedParticipants?.find(
+                (participant) => participant.uid === auth.currentUser?.uid
+              )?.amount || 0
+            : amountValidation.value,
         type,
         categoryId: selectedCategory.id,
         categoryName: selectedCategory.name,
         date: parsedDate,
         note: note.trim(),
         imagePath: nextImagePath,
+        ...(type === 'shared'
+          ? {
+              creatorUid: auth.currentUser?.uid,
+              participantUids: selectedUsers.map((user) => user.uid),
+              participants: sharedParticipants,
+              payerUid,
+              totalAmount: amountValidation.value,
+              splitMode,
+            }
+          : {}),
       };
 
       if (transactionId) {
@@ -590,10 +727,10 @@ export default function TransactionFormSheet({
                 }`}>
                   <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Monto</Text>
                   <View className="flex-row items-center justify-center">
-                    <DollarSign size={28} color={type === 'expense' ? '#f43f5e' : '#10b981'} />
+                    <DollarSign size={28} color={type === 'income' ? '#10b981' : '#f43f5e'} />
                     <TextInput
                       className={`text-3xl font-extrabold tracking-tight min-w-[120px] text-center ${
-                        type === 'expense' ? 'text-rose-500' : 'text-emerald-500'
+                        type === 'income' ? 'text-emerald-500' : 'text-rose-500'
                       }`}
                       keyboardType="decimal-pad"
                       placeholder="0.00"
@@ -619,11 +756,16 @@ export default function TransactionFormSheet({
                   ) : null}
                 </View>
 
-                {/* Tipo de Movimiento (Gasto / Ingreso) */}
+                {/* Tipo de Movimiento */}
                 <View className="bg-slate-50 dark:bg-slate-850 p-1.5 rounded-2xl flex-row gap-2 border border-slate-100 dark:border-slate-800 mb-4">
-                  {(['expense', 'income'] as TransactionType[]).map((item) => {
+                  {(['expense', 'income', 'shared'] as TransactionType[]).map((item) => {
                     const isActive = type === item;
-                    const label = item === 'expense' ? 'Gasto' : 'Ingreso';
+                    const label =
+                      item === 'expense'
+                        ? 'Gasto'
+                        : item === 'income'
+                          ? 'Ingreso'
+                          : 'Compartido';
 
                     return (
                       <TouchableOpacity
@@ -640,6 +782,138 @@ export default function TransactionFormSheet({
                     );
                   })}
                 </View>
+
+                {type === 'shared' ? (
+                  <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">
+                    <View className="flex-row items-center mb-3">
+                      <Users size={18} color="#64748b" />
+                      <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm ml-2">
+                        Participantes
+                      </Text>
+                    </View>
+
+                    <TextInput
+                      className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-100 text-sm mb-2"
+                      placeholder="Buscar usuario por nombre"
+                      placeholderTextColor="#94a3b8"
+                      value={userSearch}
+                      onChangeText={setUserSearch}
+                    />
+                    <View className="mb-3">
+                      {publicUsers
+                        .filter(
+                          (user) =>
+                            user.nombreLower.includes(
+                              userSearch.trim().toLocaleLowerCase('es')
+                            ) &&
+                            !selectedUsers.some(
+                              (selected) => selected.uid === user.uid
+                            )
+                        )
+                        .slice(0, 6)
+                        .map((user) => (
+                            <TouchableOpacity
+                              key={user.uid}
+                              className="flex-row items-center justify-between py-3 px-2 border-b border-slate-100 dark:border-slate-800"
+                              onPress={() => addSharedUser(user)}
+                            >
+                              <Text className="text-slate-700 dark:text-slate-200">
+                                {user.nombre}
+                              </Text>
+                              <UserPlus size={17} color="#6366f1" />
+                            </TouchableOpacity>
+                          ))}
+                    </View>
+
+                    {selectedUsers.map((user) => {
+                      const isMe = user.uid === auth.currentUser?.uid;
+                      return (
+                        <View
+                          key={user.uid}
+                          className="flex-row items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl p-3 mb-2"
+                        >
+                          <Text className="text-slate-700 dark:text-slate-200 font-semibold">
+                            {user.nombre}{isMe ? ' (yo)' : ''}
+                          </Text>
+                          {!isMe ? (
+                            <TouchableOpacity onPress={() => removeSharedUser(user.uid)}>
+                              <X size={17} color="#f43f5e" />
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+
+                    <Text className="text-slate-600 dark:text-slate-300 font-bold text-sm mt-3 mb-2">
+                      Pagado por
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2 mb-4">
+                      {selectedUsers.map((user) => (
+                        <TouchableOpacity
+                          key={user.uid}
+                          className={`rounded-xl px-3 py-2 ${
+                            payerUid === user.uid
+                              ? 'bg-indigo-600'
+                              : 'bg-slate-100 dark:bg-slate-800'
+                          }`}
+                          onPress={() => setPayerUid(user.uid)}
+                        >
+                          <Text className={payerUid === user.uid ? 'text-white' : 'text-slate-600 dark:text-slate-300'}>
+                            {user.nombre}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text className="text-slate-600 dark:text-slate-300 font-bold text-sm mb-2">
+                      Reparto
+                    </Text>
+                    <View className="flex-row gap-2 mb-3">
+                      {([
+                        ['equal', 'Igual'],
+                        ['amount', 'Montos'],
+                        ['percentage', 'Porcentaje'],
+                      ] as Array<[SharedSplitMode, string]>).map(([mode, label]) => (
+                        <TouchableOpacity
+                          key={mode}
+                          className={`flex-1 rounded-xl py-2 items-center ${
+                            splitMode === mode
+                              ? 'bg-slate-900 dark:bg-indigo-600'
+                              : 'bg-slate-100 dark:bg-slate-800'
+                          }`}
+                          onPress={() => setSplitMode(mode)}
+                        >
+                          <Text className={`text-xs font-bold ${splitMode === mode ? 'text-white' : 'text-slate-500 dark:text-slate-300'}`}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {splitMode !== 'equal'
+                      ? selectedUsers.map((user) => (
+                          <View key={user.uid} className="flex-row items-center gap-3 mb-2">
+                            <Text className="flex-1 text-slate-600 dark:text-slate-300 text-sm">
+                              {user.nombre}
+                            </Text>
+                            <TextInput
+                              className="w-28 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2 text-right text-slate-800 dark:text-slate-100"
+                              keyboardType="decimal-pad"
+                              placeholder={splitMode === 'percentage' ? '0%' : '$ 0'}
+                              placeholderTextColor="#94a3b8"
+                              value={splitValues[user.uid] || ''}
+                              onChangeText={(value) =>
+                                setSplitValues((current) => ({
+                                  ...current,
+                                  [user.uid]: value.replace(',', '.'),
+                                }))
+                              }
+                            />
+                          </View>
+                        ))
+                      : null}
+                  </View>
+                ) : null}
 
                 {/* Input: Título */}
                 <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">

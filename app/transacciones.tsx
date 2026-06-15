@@ -44,6 +44,8 @@ import {
 } from '../utils/date';
 import { getCategories } from '../services/category.service';
 import type { Category } from '../types';
+import SharedExpenseDetail from '../components/SharedExpenseDetail';
+import { useAuthStore } from '../store/authStore';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -69,6 +71,7 @@ const formatAmount = (transaction: Transaction) => {
 };
 
 export default function Transacciones() {
+  const currentUser = useAuthStore((state) => state.user);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
@@ -437,7 +440,8 @@ export default function Transacciones() {
               const Icon = category.icon;
               const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
               const isShared = selectedTx.type === 'shared';
-              const sharedTotal = selectedTx.detalleCompartido?.total ?? 0;
+              const canManage =
+                !isShared || selectedTx.creatorUid === currentUser?.uid;
 
               return (
                 <View className="w-full flex-1 flex flex-col">
@@ -508,29 +512,10 @@ export default function Transacciones() {
                     </View>
 
                     {/* Detalle Compartido */}
-                    {isShared && selectedTx.detalleCompartido && (
-                      <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4">
-                        <Text className="text-slate-800 dark:text-slate-100 font-bold text-sm mb-2">Detalle Compartido</Text>
-                        <Text className="text-slate-500 dark:text-slate-400 text-xs mb-1">Total Original</Text>
-                        <Text className="text-slate-800 dark:text-slate-100 font-bold text-lg mb-3">
-                          {formatCurrency(sharedTotal)}
-                        </Text>
-                        <View className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-xl gap-1.5">
-                          <Text className="text-slate-700 dark:text-slate-350 text-xs">
-                            Pagado por mí:{' '}
-                            <Text className="font-bold">
-                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorMi)}
-                            </Text>
-                          </Text>
-                          <Text className="text-slate-700 dark:text-slate-350 text-xs">
-                            Pagado por {selectedTx.detalleCompartido.amigo?.nombre || 'Amigo'}:{' '}
-                            <Text className="font-bold">
-                              {formatCurrency(selectedTx.detalleCompartido.pagadoPorAmigo)}
-                            </Text>
-                          </Text>
-                        </View>
-                      </View>
-                    )}
+                    <SharedExpenseDetail
+                      transaction={selectedTx}
+                      currentUserUid={currentUser?.uid}
+                    />
 
                     {/* Imagen adjunta */}
                     {selectedTx.imageUrl && (
@@ -543,17 +528,19 @@ export default function Transacciones() {
 
                   {/* Acciones del Modal */}
                   <View className="flex-row gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <TouchableOpacity
-                      className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
-                      onPress={() => {
-                        setIsDetailOpen(false);
-                        setFormTxId(selectedTx.id);
-                        setIsFormOpen(true);
-                      }}
-                    >
-                      <Pencil size={16} color="#475569" />
-                      <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Editar</Text>
-                    </TouchableOpacity>
+                    {canManage ? (
+                      <TouchableOpacity
+                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
+                        onPress={() => {
+                          setIsDetailOpen(false);
+                          setFormTxId(selectedTx.id);
+                          setIsFormOpen(true);
+                        }}
+                      >
+                        <Pencil size={16} color="#475569" />
+                        <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Editar</Text>
+                      </TouchableOpacity>
+                    ) : null}
 
                     <TouchableOpacity
                       className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
@@ -566,20 +553,22 @@ export default function Transacciones() {
                       <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Exportar</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                      className="bg-rose-500 active:bg-rose-600 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
-                      onPress={handleDeleteSelected}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <ActivityIndicator size="small" color="white" />
-                      ) : (
-                        <>
-                          <Trash2 size={16} color="white" />
-                          <Text className="text-white font-bold text-sm">Eliminar</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    {canManage ? (
+                      <TouchableOpacity
+                        className="bg-rose-500 active:bg-rose-600 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
+                        onPress={handleDeleteSelected}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <>
+                            <Trash2 size={16} color="white" />
+                            <Text className="text-white font-bold text-sm">Eliminar</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 </View>
               );

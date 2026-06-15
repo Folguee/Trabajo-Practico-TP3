@@ -10,7 +10,11 @@ export const buildCSV = (transactions: Transaction[]) => {
   const headers = ['Fecha', 'Tipo', 'Categoria', 'Titulo', 'Monto', 'Nota'];
   const rows = transactions.map((transaction) => [
     formatIsoDate(transaction.date),
-    transaction.type === 'income' ? 'Ingreso' : 'Gasto',
+    transaction.type === 'income'
+      ? 'Ingreso'
+      : transaction.type === 'shared'
+        ? 'Compartido'
+        : 'Gasto',
     transaction.categoryName,
     transaction.title,
     Number(transaction.amount).toFixed(2),

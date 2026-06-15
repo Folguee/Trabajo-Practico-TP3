@@ -24,16 +24,6 @@ export type SharedParticipant = {
   percentage: number;
 };
 
-export type SharedTransactionDetail = {
-  total: number;
-  pagadoPorMi: number;
-  pagadoPorAmigo: number;
-  amigo?: {
-    uid?: string;
-    nombre?: string;
-  };
-};
-
 export type Transaction = {
   id: string;
   type: TransactionType;
@@ -52,9 +42,6 @@ export type Transaction = {
   payerUid?: string;
   totalAmount?: number;
   splitMode?: SharedSplitMode;
-  parteCreador?: number;
-  parteAmigo?: number;
-  detalleCompartido?: SharedTransactionDetail;
   createdAt?: Date;
   updatedAt?: Date;
 };
