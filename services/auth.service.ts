@@ -87,14 +87,16 @@ export async function logout(): Promise<void> {
 export function onAuthChange(
   callback: (user: User | null) => void
 ): () => void {
-  return onAuthStateChanged(auth, (user) => {
+  return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      void syncPublicUser(
-        user.uid,
-        user.displayName || user.email?.split('@')[0] || 'Usuario'
-      ).catch((error) => {
+      try {
+        await syncPublicUser(
+          user.uid,
+          user.displayName || user.email?.split('@')[0] || 'Usuario'
+        );
+      } catch (error) {
         console.warn('No se pudo sincronizar el directorio publico:', error);
-      });
+      }
     }
     callback(user);
   });

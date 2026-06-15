@@ -85,6 +85,8 @@ export default function TransactionFormSheet({
   const [dateError, setDateError] = useState('');
   const [amountError, setAmountError] = useState('');
   const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<PublicUser[]>([]);
   const [userSearch, setUserSearch] = useState('');
   const [payerUid, setPayerUid] = useState('');
@@ -92,16 +94,31 @@ export default function TransactionFormSheet({
   const [splitValues, setSplitValues] = useState<Record<string, string>>({});
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
+  const loadPublicUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setUsersError('');
+    try {
+      setPublicUsers(await getPublicUsers());
+    } catch (error) {
+      console.error('Error cargando directorio publico:', error);
+      setPublicUsers([]);
+      setUsersError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo cargar la lista de usuarios'
+      );
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
   // Cargar transacción si estamos editando
   const loadTransaction = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [loadedCategories, loadedUsers] = await Promise.all([
-        getCategories(),
-        getPublicUsers(),
-      ]);
+      const loadedCategories = await getCategories();
       setCategories(loadedCategories);
-      setPublicUsers(loadedUsers);
+      await loadPublicUsers();
       const currentUser = auth.currentUser;
       const me: PublicUser | null = currentUser
         ? {
@@ -211,7 +228,7 @@ export default function TransactionFormSheet({
     } finally {
       setIsLoading(false);
     }
-  }, [initialType, transactionId, onClose]);
+  }, [initialType, transactionId, onClose, loadPublicUsers]);
 
   useEffect(() => {
     if (visible) {
@@ -539,7 +556,40 @@ export default function TransactionFormSheet({
                       onChangeText={setUserSearch}
                     />
                     <View className="mb-3">
-                      {publicUsers
+                      {isLoadingUsers ? (
+                        <View className="py-4 items-center">
+                          <ActivityIndicator size="small" color="#6366f1" />
+                          <Text className="text-slate-400 text-xs mt-2">
+                            Cargando usuarios...
+                          </Text>
+                        </View>
+                      ) : usersError ? (
+                        <View className="bg-rose-50 dark:bg-rose-950/30 rounded-xl p-3">
+                          <Text className="text-rose-600 dark:text-rose-300 text-xs mb-2">
+                            No se pudo cargar el directorio: {usersError}
+                          </Text>
+                          <TouchableOpacity onPress={loadPublicUsers}>
+                            <Text className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">
+                              Reintentar
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : publicUsers.filter(
+                          (user) =>
+                            user.nombreLower.includes(
+                              userSearch.trim().toLocaleLowerCase('es')
+                            ) &&
+                            !selectedUsers.some(
+                              (selected) => selected.uid === user.uid
+                            )
+                        ).length === 0 ? (
+                        <Text className="text-slate-400 dark:text-slate-500 text-xs py-3">
+                          {publicUsers.length === 0
+                            ? 'Todavía no hay otros usuarios disponibles. Deben abrir la app una vez para aparecer en el directorio.'
+                            : 'No se encontraron usuarios con ese nombre.'}
+                        </Text>
+                      ) : (
+                        publicUsers
                         .filter(
                           (user) =>
                             user.nombreLower.includes(
@@ -561,7 +611,8 @@ export default function TransactionFormSheet({
                               </Text>
                               <UserPlus size={17} color="#6366f1" />
                             </TouchableOpacity>
-                          ))}
+                          ))
+                      )}
                     </View>
 
                     {selectedUsers.map((user) => {
