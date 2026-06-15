@@ -83,8 +83,11 @@ export default function TransactionFormSheet({
   const [imageChanged, setImageChanged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
   const [amountError, setAmountError] = useState('');
+  const [categoryError, setCategoryError] = useState('');
+  const [sharedError, setSharedError] = useState('');
   const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState('');
@@ -141,6 +144,7 @@ export default function TransactionFormSheet({
           loadedCategories.find((item) => item.type === initialType) ||
           loadedCategories[0];
         setTitle('');
+        setTitleError('');
         setAmount('');
         setAmountError('');
         setType(initialType);
@@ -152,6 +156,8 @@ export default function TransactionFormSheet({
         setOriginalImagePath(null);
         setImageChanged(false);
         setDateError('');
+        setCategoryError('');
+        setSharedError('');
         setSelectedUsers(me ? [me] : []);
         setPayerUid(me?.uid || '');
         setSplitMode('equal');
@@ -174,6 +180,7 @@ export default function TransactionFormSheet({
           return;
         }
         setTitle(transaction.title);
+        setTitleError('');
         setAmount(
           formatMoneyInput(
             transaction.type === 'shared'
@@ -191,6 +198,8 @@ export default function TransactionFormSheet({
         setOriginalImagePath(transaction.imagePath || null);
         setImageChanged(false);
         setDateError('');
+        setCategoryError('');
+        setSharedError('');
         if (transaction.type === 'shared' && transaction.participants) {
           setSelectedUsers(
             transaction.participants.map((participant) => ({
@@ -239,6 +248,8 @@ export default function TransactionFormSheet({
 
   const handleTypeChange = (nextType: TransactionType) => {
     setType(nextType);
+    setCategoryError('');
+    setSharedError('');
     const categoryType = nextType === 'income' ? 'income' : 'expense';
     setCategoryId(
       categories.find((category) => category.type === categoryType)?.id || ''
@@ -314,6 +325,7 @@ export default function TransactionFormSheet({
         : [...current, user]
     );
     setUserSearch('');
+    setSharedError('');
   };
 
   const removeSharedUser = (uid: string) => {
@@ -325,14 +337,26 @@ export default function TransactionFormSheet({
       return next;
     });
     if (payerUid === uid) setPayerUid(auth.currentUser?.uid || '');
+    setSharedError('');
   };
 
   const handleSave = async () => {
+    const nextTitleError = title.trim() ? '' : 'Ingresa un título.';
+    const nextAmountError = amount.trim() ? '' : 'Ingresa un monto.';
+    const nextCategoryError = categoryId ? '' : 'Selecciona una categoría.';
+    const nextDateError = date.trim() ? '' : 'Ingresa una fecha.';
+
+    setTitleError(nextTitleError);
+    setAmountError(nextAmountError);
+    setCategoryError(nextCategoryError);
+    setDateError(nextDateError);
+    setSharedError('');
+
     const missingFields = [
-      !title.trim() ? 'título' : '',
-      !amount.trim() ? 'monto' : '',
-      !categoryId ? 'categoría' : '',
-      !date.trim() ? 'fecha' : '',
+      nextTitleError ? 'título' : '',
+      nextAmountError ? 'monto' : '',
+      nextCategoryError ? 'categoría' : '',
+      nextDateError ? 'fecha' : '',
     ].filter(Boolean);
 
     if (missingFields.length > 0) {
@@ -366,6 +390,7 @@ export default function TransactionFormSheet({
       (category) => category.id === categoryId
     );
     if (!selectedCategory) {
+      setCategoryError('Selecciona nuevamente una categoría disponible.');
       Alert.alert(
         'Categoría inválida',
         'Selecciona nuevamente una categoría disponible.'
@@ -376,12 +401,14 @@ export default function TransactionFormSheet({
     let sharedParticipants: SharedParticipant[] | undefined;
     if (type === 'shared') {
       if (!auth.currentUser) {
+        setSharedError('Vuelve a iniciar sesión para guardar el gasto.');
         Alert.alert('Sesión inválida', 'Vuelve a iniciar sesión para guardar el gasto.');
         return;
       }
       if (
         !selectedUsers.some((participant) => participant.uid === auth.currentUser?.uid)
       ) {
+        setSharedError('El creador debe estar incluido entre los participantes.');
         Alert.alert(
           'Revisa el gasto compartido',
           'El creador debe estar incluido entre los participantes.'
@@ -398,11 +425,14 @@ export default function TransactionFormSheet({
           splitValues
         );
       } catch (error) {
-        Alert.alert(
-          'Revisa el gasto compartido',
+        const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Completa los datos del reparto.'
+            : 'Completa los datos del reparto.';
+        setSharedError(errorMessage);
+        Alert.alert(
+          'Revisa el gasto compartido',
+          errorMessage
         );
         return;
       }
@@ -577,7 +607,11 @@ export default function TransactionFormSheet({
                 </View>
 
                 {type === 'shared' ? (
-                  <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">
+                  <View className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 mb-3 shadow-sm ${
+                    sharedError
+                      ? 'border-rose-400 dark:border-rose-500'
+                      : 'border-slate-200/80 dark:border-slate-800'
+                  }`}>
                     <View className="flex-row items-center mb-3">
                       <Users size={18} color="#64748b" />
                       <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm ml-2">
@@ -683,7 +717,10 @@ export default function TransactionFormSheet({
                               ? 'bg-indigo-600'
                               : 'bg-slate-100 dark:bg-slate-800'
                           }`}
-                          onPress={() => setPayerUid(user.uid)}
+                          onPress={() => {
+                            setPayerUid(user.uid);
+                            setSharedError('');
+                          }}
                         >
                           <Text className={payerUid === user.uid ? 'text-white' : 'text-slate-600 dark:text-slate-300'}>
                             {user.nombre}
@@ -708,7 +745,10 @@ export default function TransactionFormSheet({
                               ? 'bg-slate-900 dark:bg-indigo-600'
                               : 'bg-slate-100 dark:bg-slate-800'
                           }`}
-                          onPress={() => setSplitMode(mode)}
+                          onPress={() => {
+                            setSplitMode(mode);
+                            setSharedError('');
+                          }}
                         >
                           <Text className={`text-xs font-bold ${splitMode === mode ? 'text-white' : 'text-slate-500 dark:text-slate-300'}`}>
                             {label}
@@ -730,35 +770,63 @@ export default function TransactionFormSheet({
                               placeholderTextColor="#94a3b8"
                               value={splitValues[user.uid] || ''}
                               onChangeText={(value) =>
-                                setSplitValues((current) => ({
-                                  ...current,
-                                  [user.uid]: value.replace(',', '.'),
-                                }))
+                                {
+                                  setSplitValues((current) => ({
+                                    ...current,
+                                    [user.uid]: value.replace(',', '.'),
+                                  }));
+                                  setSharedError('');
+                                }
                               }
                             />
                           </View>
                         ))
                       : null}
+                    {sharedError ? (
+                      <Text className="text-rose-500 text-xs mt-2 font-semibold">
+                        {sharedError}
+                      </Text>
+                    ) : null}
                   </View>
                 ) : null}
 
                 {/* Input: Título */}
-                <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">
+                <View className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 mb-3 shadow-sm ${
+                  titleError
+                    ? 'border-rose-400 dark:border-rose-500'
+                    : 'border-slate-200/80 dark:border-slate-800'
+                }`}>
                   <View className="flex-row items-center mb-2">
                     <Tag size={18} color="#64748b" />
                     <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Título</Text>
                   </View>
                   <TextInput
-                    className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-100 text-sm"
+                    className={`bg-slate-50 dark:bg-slate-800 border rounded-xl px-4 py-3 text-slate-800 dark:text-slate-100 text-sm ${
+                      titleError
+                        ? 'border-rose-400 dark:border-rose-500'
+                        : 'border-slate-100 dark:border-slate-700'
+                    }`}
                     placeholder="Ej: Supermercado"
                     placeholderTextColor="#94a3b8"
                     value={title}
-                    onChangeText={setTitle}
+                    onChangeText={(value) => {
+                      setTitle(value);
+                      if (titleError) setTitleError('');
+                    }}
                   />
+                  {titleError ? (
+                    <Text className="text-rose-500 text-xs mt-1.5 font-semibold">
+                      {titleError}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Input: Fecha */}
-                <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">
+                <View className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 mb-3 shadow-sm ${
+                  categoryError
+                    ? 'border-rose-400 dark:border-rose-500'
+                    : 'border-slate-200/80 dark:border-slate-800'
+                }`}>
                   <View className="flex-row items-center mb-2">
                     <CalendarIcon size={18} color={dateError ? '#f43f5e' : '#64748b'} />
                     <Text className={`font-semibold text-sm ml-2 ${dateError ? 'text-rose-500' : 'text-slate-600 dark:text-slate-350'}`}>
@@ -807,7 +875,10 @@ export default function TransactionFormSheet({
                               ? 'bg-[#0f172a] dark:bg-indigo-600'
                               : 'bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700'
                           }`}
-                          onPress={() => setCategoryId(item.id)}
+                          onPress={() => {
+                            setCategoryId(item.id);
+                            setCategoryError('');
+                          }}
                         >
                           <View className="flex-row items-center gap-3.5">
                             <View className={`${categoryConfig.bgColor} w-10 h-10 rounded-full items-center justify-center shadow-sm`}>
@@ -821,6 +892,11 @@ export default function TransactionFormSheet({
                         </TouchableOpacity>
                       );
                     })}
+                  {categoryError ? (
+                    <Text className="text-rose-500 text-xs mt-1 font-semibold">
+                      {categoryError}
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Input: Nota */}
