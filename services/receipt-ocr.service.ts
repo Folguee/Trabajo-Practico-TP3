@@ -50,6 +50,7 @@ const inferMimeType = (uri: string) => {
   const normalized = uri.toLowerCase().split('?')[0];
   if (normalized.endsWith('.png')) return 'image/png';
   if (normalized.endsWith('.webp')) return 'image/webp';
+  if (normalized.endsWith('.pdf')) return 'application/pdf';
   return 'image/jpeg';
 };
 
@@ -63,8 +64,8 @@ export async function analyzeReceipt({
   let targetUri = uri;
   let targetMimeType = mimeType || inferMimeType(uri);
 
-  // Normalize WebP or other formats to JPEG before uploading for OCR analysis
-  if (targetMimeType !== 'image/jpeg' && targetMimeType !== 'image/png') {
+  // Normalize WebP or other formats to JPEG before uploading for OCR analysis (skip for PDF)
+  if (targetMimeType !== 'image/jpeg' && targetMimeType !== 'image/png' && targetMimeType !== 'application/pdf') {
     try {
       const manipResult = await ImageManipulator.manipulateAsync(
         uri,
@@ -80,15 +81,15 @@ export async function analyzeReceipt({
 
   const fileResponse = await fetch(targetUri);
   if (!fileResponse.ok) {
-    throw new Error('No se pudo leer la imagen seleccionada');
+    throw new Error('No se pudo leer el archivo seleccionado');
   }
 
   const file = await fileResponse.arrayBuffer();
   if (!file.byteLength) {
-    throw new Error('La imagen seleccionada esta vacia');
+    throw new Error('El archivo seleccionado esta vacio');
   }
   if (file.byteLength > MAX_RECEIPT_SIZE) {
-    throw new Error('La imagen debe pesar menos de 5 MB');
+    throw new Error('El archivo debe pesar menos de 5 MB');
   }
 
   const response = await fetch(endpoint, {

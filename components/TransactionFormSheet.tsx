@@ -37,6 +37,7 @@ import { formatDateInput, formatDisplayDate, parseDateInput } from '../utils/dat
 import { deleteReceipt, uploadReceipt } from '../services/receipt.service';
 import { analyzeReceipt } from '../services/receipt-ocr.service';
 import {
+  pickReceiptDocument,
   pickReceiptFromLibrary,
   takeReceiptPhoto,
 } from '../services/receipt-picker.service';
@@ -80,6 +81,7 @@ export default function TransactionFormSheet({
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
   const [ocrCompletedFields, setOcrCompletedFields] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Cargar transacción si estamos editando
@@ -188,6 +190,56 @@ export default function TransactionFormSheet({
     setOcrError(null);
     setOcrWarnings([]);
     setOcrCompletedFields([]);
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const picked = await pickReceiptDocument();
+      if (picked) setPickedPhoto(picked);
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo abrir el selector de documentos.');
+    }
+  };
+
+  const handleDragOver = (e: any) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: any) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.nativeEvent?.dataTransfer?.files || e.dataTransfer?.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      if (file.size > 5 * 1024 * 1024) {
+        Alert.alert('Archivo demasiado grande', 'El archivo debe pesar menos de 5 MB.');
+        return;
+      }
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        Alert.alert('Formato no soportado', 'Solo se aceptan imágenes JPEG, PNG, WebP y archivos PDF.');
+        return;
+      }
+
+      const uri = URL.createObjectURL(file);
+      setPickedPhoto({
+        uri,
+        mimeType: file.type,
+      });
+
+      Alert.alert(
+        'Archivo adjunto',
+        `Se adjuntó "${file.name}" correctamente.`
+      );
+    }
   };
 
   const handleAnalyzeReceipt = async () => {
@@ -560,11 +612,22 @@ export default function TransactionFormSheet({
                 </View>
 
                 {/* Input: Foto */}
-                <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm mb-4">
+                <View
+                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-4 ${
+                    isDragging
+                      ? 'border-dashed border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/10'
+                      : 'border-slate-200/80 dark:border-slate-800'
+                  }`}
+                  {...({
+                    onDragOver: handleDragOver,
+                    onDragLeave: handleDragLeave,
+                    onDrop: handleDrop,
+                  } as any)}
+                >
                   <View className="flex-row justify-between items-center mb-3">
                     <View className="flex-row items-center">
                       <Camera size={18} color="#64748b" />
-                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Foto Adjunta</Text>
+                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Comprobante Adjunto</Text>
                     </View>
                     <View className="flex-row gap-2">
                       <TouchableOpacity
@@ -581,11 +644,18 @@ export default function TransactionFormSheet({
                       >
                         <Images size={17} color="white" />
                       </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickDocument}
+                        accessibilityLabel="Elegir de documentos"
+                      >
+                        <FileText size={17} color="white" />
+                      </TouchableOpacity>
                       {selectedImageUri ? (
                         <TouchableOpacity
                           className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
                           onPress={handleRemovePhoto}
-                          accessibilityLabel="Quitar foto"
+                          accessibilityLabel="Quitar archivo"
                         >
                           <Trash2 size={17} color="#f43f5e" />
                         </TouchableOpacity>
@@ -594,7 +664,19 @@ export default function TransactionFormSheet({
                   </View>
                   {selectedImageUri ? (
                     <View className="gap-3">
-                      <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      {selectedImageMimeType === 'application/pdf' || selectedImageUri.toLowerCase().split('?')[0].endsWith('.pdf') ? (
+                        <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-40 items-center justify-center gap-2">
+                          <FileText size={40} color="#6366f1" />
+                          <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm">
+                            Documento PDF adjunto
+                          </Text>
+                          <Text className="text-slate-400 dark:text-slate-500 text-xs text-center px-4" numberOfLines={1}>
+                            {selectedImageUri.split('/').pop() || 'comprobante.pdf'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      )}
                       
                       {(type === 'expense' || type === 'shared') && (
                         <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-105 dark:border-slate-750">
@@ -656,7 +738,7 @@ export default function TransactionFormSheet({
                   ) : (
                     <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
                       <Camera size={24} color="#94a3b8" />
-                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin imagen adjunta</Text>
+                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin archivo adjunto</Text>
                     </View>
                   )}
                 </View>

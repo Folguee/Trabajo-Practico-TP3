@@ -103,6 +103,42 @@ describe('Receipt OCR Service & Parser', () => {
       );
       expect(fetchMock).toHaveBeenNthCalledWith(1, 'file:///normalized.jpg');
     });
+
+    it('no normaliza documentos PDF a JPEG y los envia como application/pdf', async () => {
+      getIdToken.mockResolvedValue('firebase-id-token');
+      const pdfBytes = new Uint8Array([37, 80, 68, 70]).buffer;
+
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(pdfBytes, {
+            status: 200,
+            headers: { 'Content-Type': 'application/pdf' },
+          })
+        )
+        .mockResolvedValueOnce(
+          Response.json({ title: { value: 'Metrogas', confidence: 1.0 } }, { status: 200 })
+        );
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { analyzeReceipt } = await import('../receipt-ocr.service');
+      const result = await analyzeReceipt({ uri: 'file:///comprobante.pdf', mimeType: 'application/pdf' });
+
+      expect(manipulateAsync).not.toHaveBeenCalled();
+      expect(result.title.value).toBe('Metrogas');
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        'https://example.supabase.co/functions/v1/receipt-ocr',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer firebase-id-token',
+            'Content-Type': 'application/pdf',
+          },
+          body: pdfBytes,
+        })
+      );
+    });
   });
 
   describe('Pure OCR Parser (parseOcrLines)', () => {

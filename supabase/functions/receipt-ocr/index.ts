@@ -72,107 +72,138 @@ Deno.serve(async (req) => {
     }
 
     const contentType = req.headers.get("content-type") ?? "";
-    if (!["image/jpeg", "image/png"].includes(contentType)) {
-      return json({ error: "Formato no permitido. Solo se acepta JPEG y PNG" }, 415);
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(contentType)) {
+      return json({ error: "Formato no permitido. Solo se acepta JPEG, PNG y PDF" }, 415);
     }
 
     // 2. Read Binary Data
     const file = await req.arrayBuffer();
     if (!file.byteLength || file.byteLength > MAX_SIZE) {
-      return json({ error: "La imagen debe pesar menos de 5 MB" }, 413);
+      const isPdf = contentType === "application/pdf";
+      return json({ error: isPdf ? "El archivo PDF debe pesar menos de 5 MB" : "La imagen debe pesar menos de 5 MB" }, 413);
     }
 
-    // 3. Fetch Secret Keys
-    const apiKey = Deno.env.get("NVIDIA_NEMOTRON_API_KEY");
-    const ocrUrl = Deno.env.get("NVIDIA_NEMOTRON_OCR_URL");
-
-    if (!apiKey || !ocrUrl) {
-      console.error("Configuracion NVIDIA faltante");
-      return json({ error: "Error de configuracion del servidor OCR" }, 500);
-    }
-
-    // 4. Convert to base64
-    const base64Image = bufferToBase64(file);
-
-    // 5. Send to NVIDIA OCR API with timeout (15s)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    let response: Response;
-    try {
-      response = await fetch(ocrUrl, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "accept": "application/json",
-        },
-        body: JSON.stringify({
-          input: [
-            {
-              type: "image_url",
-              url: `data:${contentType};base64,${base64Image}`,
-            }
-          ],
-          merge_levels: ["paragraph"]
-        }),
-        signal: controller.signal
-      });
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        return json({ error: "Timeout en la conexion con el servidor OCR" }, 504);
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      const responseText = await response.text();
-      console.error(`Error de NVIDIA: ${response.status} - ${responseText}`);
-      if (response.status === 401) {
-        return json({ error: "Error de autenticacion con el proveedor OCR" }, 500);
-      }
-      if (response.status === 429) {
-        return json({ error: "Limite de solicitudes excedido con el proveedor OCR" }, 429);
-      }
-      return json({ error: "El proveedor OCR no pudo procesar la imagen" }, response.status);
-    }
-
-    const ocrData = await response.json();
-
-    // 6. Extract raw text / confidence fields from NVIDIA OCR response
+    // 3. Extract text lines
     let ocrLines: OcrLine[] = [];
 
-    if (Array.isArray(ocrData)) {
-      ocrLines = ocrData.map((d: any) => ({
-        text: d.text || d.recognized_text || d.content || "",
-        confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
-      }));
-    } else if (ocrData.data && Array.isArray(ocrData.data)) {
-      ocrLines = ocrData.data.map((d: any) => ({
-        text: d.text || d.recognized_text || d.content || "",
-        confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
-      }));
-    } else if (ocrData.predictions && Array.isArray(ocrData.predictions)) {
-      ocrLines = ocrData.predictions.map((d: any) => ({
-        text: d.text || d.recognized_text || d.content || "",
-        confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
-      }));
-    } else if (ocrData.detections && Array.isArray(ocrData.detections)) {
-      ocrLines = ocrData.detections.map((d: any) => ({
-        text: d.text || d.recognized_text || d.content || "",
-        confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
-      }));
-    } else if (ocrData.choices?.[0]?.message?.content) {
-      const content = ocrData.choices[0].message.content;
-      ocrLines = content.split("\n").map((line: string) => ({
-        text: line,
-        confidence: 1.0
-      }));
+    if (contentType === "application/pdf") {
+      try {
+        const { getDocumentProxy, extractText } = await import("npm:unpdf");
+        const pdf = await getDocumentProxy(new Uint8Array(file));
+        const { text } = await extractText(pdf, { mergePages: true });
+
+        if (!text || !text.trim()) {
+          return json({
+            title: { value: null, confidence: 0.0 },
+            amount: { value: null, confidence: 0.0 },
+            date: { value: null, confidence: 0.0 },
+            categoryHint: { value: null, confidence: 0.0 },
+            warnings: ["El PDF seleccionado no contiene texto legible (puede ser una imagen escaneada)."]
+          });
+        }
+
+        ocrLines = text
+          .split("\n")
+          .map((line: string) => ({
+            text: line.trim(),
+            confidence: 1.0,
+          }))
+          .filter((line) => line.text.length > 0);
+      } catch (err: any) {
+        console.error("Error procesando PDF:", err);
+        return json({ error: "No se pudo procesar el archivo PDF" }, 422);
+      }
     } else {
-      console.error("Payload NVIDIA no reconocido", JSON.stringify(ocrData));
-      return json({ error: "Formato de respuesta del proveedor OCR no reconocido" }, 422);
+      // 3. Fetch Secret Keys
+      const apiKey = Deno.env.get("NVIDIA_NEMOTRON_API_KEY");
+      const ocrUrl = Deno.env.get("NVIDIA_NEMOTRON_OCR_URL");
+
+      if (!apiKey || !ocrUrl) {
+        console.error("Configuracion NVIDIA faltante");
+        return json({ error: "Error de configuracion del servidor OCR" }, 500);
+      }
+
+      // 4. Convert to base64
+      const base64Image = bufferToBase64(file);
+
+      // 5. Send to NVIDIA OCR API with timeout (15s)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      let response: Response;
+      try {
+        response = await fetch(ocrUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "accept": "application/json",
+          },
+          body: JSON.stringify({
+            input: [
+              {
+                type: "image_url",
+                url: `data:${contentType};base64,${base64Image}`,
+              }
+            ],
+            merge_levels: ["paragraph"]
+          }),
+          signal: controller.signal
+        });
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          return json({ error: "Timeout en la conexion con el servidor OCR" }, 504);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error(`Error de NVIDIA: ${response.status} - ${responseText}`);
+        if (response.status === 401) {
+          return json({ error: "Error de autenticacion con el proveedor OCR" }, 500);
+        }
+        if (response.status === 429) {
+          return json({ error: "Limite de solicitudes excedido con el proveedor OCR" }, 429);
+        }
+        return json({ error: "El proveedor OCR no pudo procesar la imagen" }, response.status);
+      }
+
+      const ocrData = await response.json();
+
+      // 6. Extract raw text / confidence fields from NVIDIA OCR response
+      if (Array.isArray(ocrData)) {
+        ocrLines = ocrData.map((d: any) => ({
+          text: d.text || d.recognized_text || d.content || "",
+          confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
+        }));
+      } else if (ocrData.data && Array.isArray(ocrData.data)) {
+        ocrLines = ocrData.data.map((d: any) => ({
+          text: d.text || d.recognized_text || d.content || "",
+          confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
+        }));
+      } else if (ocrData.predictions && Array.isArray(ocrData.predictions)) {
+        ocrLines = ocrData.predictions.map((d: any) => ({
+          text: d.text || d.recognized_text || d.content || "",
+          confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
+        }));
+      } else if (ocrData.detections && Array.isArray(ocrData.detections)) {
+        ocrLines = ocrData.detections.map((d: any) => ({
+          text: d.text || d.recognized_text || d.content || "",
+          confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)
+        }));
+      } else if (ocrData.choices?.[0]?.message?.content) {
+        const content = ocrData.choices[0].message.content;
+        ocrLines = content.split("\n").map((line: string) => ({
+          text: line,
+          confidence: 1.0
+        }));
+      } else {
+        console.error("Payload NVIDIA no reconocido", JSON.stringify(ocrData));
+        return json({ error: "Formato de respuesta del proveedor OCR no reconocido" }, 422);
+      }
     }
 
     // 7. Parse and interpret results
