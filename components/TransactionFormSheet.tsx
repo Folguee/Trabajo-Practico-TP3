@@ -269,10 +269,15 @@ export default function TransactionFormSheet({
         completed.push('Monto');
       }
 
+      if (result.date.value) {
+        setDate(result.date.value);
+        completed.push('Fecha');
+      }
+
       setOcrCompletedFields(completed);
       if (result.warnings && result.warnings.length > 0) {
         const filteredWarnings = result.warnings.filter(w =>
-          w.toLowerCase().includes('comercio') || w.toLowerCase().includes('monto')
+          !w.toLowerCase().includes('categoría')
         );
         setOcrWarnings(filteredWarnings);
       }

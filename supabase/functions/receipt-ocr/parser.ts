@@ -70,6 +70,7 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
   const cuitRegex = /cuit|c\.u\.i\.t\.|2[0370]-\d{8}-\d|\b\d{11}\b/i;
   const addressRegex = /av\.|calle|ruta|nro|piso|caba|provincia|buenos aires|tel|telefono|cel|@|\.com|\.ar/i;
   const headerNoiseRegex = /^(?:factura|ticket|comprobante|duplicado|original|monotributo|resp\.|inscripto|consumidor|final|a\s+pagar|efectivo|debito|tarjeta)\b/i;
+  const invoiceFormatRegex = /^[A-Z]\s+[A-Z]-\d+-\d+$/i;
   const datePatternRegex = /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/;
   const numberNoiseRegex = /^\s*[\d.,$-]+\s*$/;
 
@@ -80,13 +81,20 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
       !cuitRegex.test(text) &&
       !addressRegex.test(text) &&
       !headerNoiseRegex.test(text) &&
+      !invoiceFormatRegex.test(text) &&
       !datePatternRegex.test(text) &&
       !numberNoiseRegex.test(text) &&
       text.length > 2
     ) {
       const posConfidence = i <= 1 ? 0.9 : (i <= 3 ? 0.75 : 0.6);
+      let cleanedTitle = text;
+      // Clean trailing document noise
+      cleanedTitle = cleanedTitle.replace(/\s+(?:factura|ticket|comprobante|original|duplicado)\b.*$/i, "").trim();
+      // Clean trailing code numbers (e.g. "Pilisar S.A. 06" -> "Pilisar S.A.")
+      cleanedTitle = cleanedTitle.replace(/\s+\d+$/g, "").trim();
+      
       result.title = {
-        value: text,
+        value: cleanedTitle,
         confidence: Number((line.confidence * posConfidence).toFixed(2))
       };
       break;
@@ -149,7 +157,7 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
   }
 
   // 3. Amount Extraction
-  const amountRegex = /(?:\$|ARS|USD)?\s*(?:[1-9]\d{0,2}(?:\.\d{3})*(?:,\d{2})|[1-9]\d*(?:,\d{2})|[1-9]\d*(?:\.\d{2})|\d+(?:[.,]\d{2}))/g;
+  const amountRegex = /(?:\$|ARS|USD)?\s*(\d+(?:[.,]\d+)*)/g;
   
   interface CandidateAmount {
     value: number;
@@ -180,7 +188,13 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
         const penaltyKeywords = ["subtotal", "sub-total", "neto gravado", "iva", "duplicado", "vuelto", "cambio", "descuento", "bonificacion", "recargo", "cuit", "telefono", "tel", "nro", "c.u.i.t."];
 
         const isTotalKeyword = totalKeywords.some(k => lowerLine.includes(k));
-        const isPenaltyKeyword = penaltyKeywords.some(k => lowerLine.includes(k));
+        let isPenaltyKeyword = penaltyKeywords.some(k => lowerLine.includes(k));
+        
+        if (isTotalKeyword) {
+          // If the line contains a total keyword, do not penalize for "iva" or "subtotal" mentions
+          const cleanPenaltyKeywords = penaltyKeywords.filter(k => k !== "iva" && k !== "subtotal" && k !== "sub-total");
+          isPenaltyKeyword = cleanPenaltyKeywords.some(k => lowerLine.includes(k));
+        }
 
         if (isTotalKeyword) {
           score += 100;
@@ -188,6 +202,20 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
         }
         if (isPenaltyKeyword) {
           score -= 150;
+        }
+
+        // Apply local context (up to 25 characters left of the number inside the line)
+        const matchIndex = match.index ?? 0;
+        const leftText = text.substring(Math.max(0, matchIndex - 25), matchIndex).toLowerCase();
+        
+        const hasLeftTotal = totalKeywords.some(k => leftText.includes(k));
+        const hasLeftPenalty = penaltyKeywords.some(k => leftText.includes(k));
+
+        if (hasLeftTotal) {
+          score += 150; // Extra bonus for number immediately following a total keyword
+        }
+        if (hasLeftPenalty) {
+          score -= 200; // Heavy penalty for number immediately following a penalty keyword
         }
 
         if (i > 0) {

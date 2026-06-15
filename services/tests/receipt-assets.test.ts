@@ -89,6 +89,34 @@ describe('Receipt Assets Parsing (Offline)', () => {
     expect(result.date.value).toBe('18/02/2026');
     expect(result.amount.value).toBe(83989);
   });
+
+  it('debería leer y parsear correctamente el PDF real invoice-2000012607576360.pdf', async () => {
+    const pdfPath2 = path.join(assetsDir, 'invoice-2000012607576360.pdf');
+    expect(fs.existsSync(pdfPath2)).toBe(true);
+
+    const buffer = fs.readFileSync(pdfPath2);
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const text = await extractTextFromPdf(pdf);
+
+    expect(text).toBeDefined();
+    expect(text.trim().length).toBeGreaterThan(0);
+
+    const ocrLines = text
+      .split('\n')
+      .map(line => ({
+        text: line.trim(),
+        confidence: 1.0,
+      }))
+      .filter(line => line.text.length > 0);
+
+    const result = parseOcrLines(ocrLines);
+
+    console.log('Parsed PDF2 offline result:', JSON.stringify(result, null, 2));
+
+    expect(result.title.value).toBe('Pilisar S.A.');
+    expect(result.date.value).toBe('11/08/2025');
+    expect(result.amount.value).toBe(149999.01);
+  });
 });
 
 liveDescribe('Receipt OCR - integración real con Supabase y NVIDIA', () => {

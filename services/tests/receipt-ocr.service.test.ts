@@ -197,6 +197,18 @@ describe('Receipt OCR Service & Parser', () => {
       expect(result.categoryHint.value).toBe('Hogar');
     });
 
+    it('maneja importes con comas de miles y puntos decimales (formato US)', () => {
+      const ocrLines = [
+        { text: 'SERVICIO DE INTERNET', confidence: 0.97 },
+        { text: 'FECHA: 01/06/2026', confidence: 0.95 },
+        { text: 'TOTAL: 149,999.01', confidence: 0.99 },
+      ];
+
+      const result = parseOcrLines(ocrLines);
+
+      expect(result.amount.value).toBe(149999.01);
+    });
+
     it('no sugiere fecha si esta en el futuro', () => {
       const futureYear = new Date().getFullYear() + 2;
       const ocrLines = [
