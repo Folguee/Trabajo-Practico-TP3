@@ -452,6 +452,138 @@ export default function TransactionFormSheet({
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+                {/* Comprobante Adjunto (arriba para auto-completar) */}
+                <View
+                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-5 ${
+                    isDragging
+                      ? 'border-dashed border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/10'
+                      : 'border-slate-200/80 dark:border-slate-800'
+                  }`}
+                  {...({
+                    onDragOver: handleDragOver,
+                    onDragLeave: handleDragLeave,
+                    onDrop: handleDrop,
+                  } as any)}
+                >
+                  <View className="flex-row justify-between items-center mb-3">
+                    <View className="flex-row items-center">
+                      <Camera size={18} color="#64748b" />
+                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Comprobante Adjunto</Text>
+                    </View>
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5"
+                        onPress={handleTakePhoto}
+                        accessibilityLabel="Tomar foto"
+                      >
+                        <Camera size={17} color="#475569" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickPhoto}
+                        accessibilityLabel="Elegir de la galeria"
+                      >
+                        <Images size={17} color="white" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickDocument}
+                        accessibilityLabel="Elegir de documentos"
+                      >
+                        <FileText size={17} color="white" />
+                      </TouchableOpacity>
+                      {selectedImageUri ? (
+                        <TouchableOpacity
+                          className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
+                          onPress={handleRemovePhoto}
+                          accessibilityLabel="Quitar archivo"
+                        >
+                          <Trash2 size={17} color="#f43f5e" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                  {selectedImageUri ? (
+                    <View className="gap-3">
+                      {selectedImageMimeType === 'application/pdf' || selectedImageUri.toLowerCase().split('?')[0].endsWith('.pdf') ? (
+                        <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-40 items-center justify-center gap-2">
+                          <FileText size={40} color="#6366f1" />
+                          <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm">
+                            Documento PDF adjunto
+                          </Text>
+                          <Text className="text-slate-400 dark:text-slate-500 text-xs text-center px-4" numberOfLines={1}>
+                            {selectedImageUri.split('/').pop() || 'comprobante.pdf'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      )}
+                      
+                      {(type === 'expense' || type === 'shared') && (
+                        <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-105 dark:border-slate-750">
+                          {isOcrLoading ? (
+                            <View className="flex-row items-center justify-center py-2 gap-2">
+                              <ActivityIndicator size="small" color="#6366f1" />
+                              <Text className="text-slate-650 dark:text-slate-300 font-semibold text-xs">
+                                Analizando comprobante...
+                              </Text>
+                            </View>
+                          ) : ocrError ? (
+                            <View className="gap-2">
+                              <Text className="text-rose-500 text-xs font-semibold">{ocrError}</Text>
+                              <TouchableOpacity
+                                className="bg-indigo-650 active:bg-indigo-700 rounded-xl py-2.5 items-center"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Text className="text-white text-xs font-bold">Reintentar análisis</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View className="flex-row items-center justify-between">
+                              <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                                ¿Autocompletar campos usando IA?
+                              </Text>
+                              <TouchableOpacity
+                                className="bg-[#6366f1] active:opacity-90 rounded-xl px-4 py-2 flex-row items-center gap-1.5 shadow-sm"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Sparkles size={13} color="white" />
+                                <Text className="text-white text-xs font-bold">Analizar</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* Suggested Fields */}
+                          {ocrCompletedFields.length > 0 && (
+                            <View className="mt-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 flex-row items-center gap-2.5">
+                              <Check size={15} color="#10b981" />
+                              <Text className="text-emerald-800 dark:text-emerald-300 text-xs font-medium flex-1">
+                                Campos completados: <Text className="font-bold">{ocrCompletedFields.join(', ')}</Text>
+                              </Text>
+                            </View>
+                          )}
+
+                          {/* Warnings list */}
+                          {ocrWarnings.length > 0 && (
+                            <View className="mt-3 bg-amber-50 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3 gap-1">
+                              {ocrWarnings.map((warning, idx) => (
+                                <Text key={idx} className="text-amber-800 dark:text-amber-400 text-[11px] leading-4">
+                                  • {warning}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
+                      <Camera size={24} color="#94a3b8" />
+                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin archivo adjunto</Text>
+                    </View>
+                  )}
+                </View>
+
                 {/* Tarjeta de Monto */}
                 <View className={`bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border mb-5 ${
                   amountError ? 'border-rose-400 dark:border-rose-500' : 'border-slate-100 dark:border-slate-800'
@@ -605,138 +737,6 @@ export default function TransactionFormSheet({
                     value={note}
                     onChangeText={setNote}
                   />
-                </View>
-
-                {/* Input: Foto */}
-                <View
-                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-4 ${
-                    isDragging
-                      ? 'border-dashed border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/10'
-                      : 'border-slate-200/80 dark:border-slate-800'
-                  }`}
-                  {...({
-                    onDragOver: handleDragOver,
-                    onDragLeave: handleDragLeave,
-                    onDrop: handleDrop,
-                  } as any)}
-                >
-                  <View className="flex-row justify-between items-center mb-3">
-                    <View className="flex-row items-center">
-                      <Camera size={18} color="#64748b" />
-                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Comprobante Adjunto</Text>
-                    </View>
-                    <View className="flex-row gap-2">
-                      <TouchableOpacity
-                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5"
-                        onPress={handleTakePhoto}
-                        accessibilityLabel="Tomar foto"
-                      >
-                        <Camera size={17} color="#475569" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
-                        onPress={handlePickPhoto}
-                        accessibilityLabel="Elegir de la galeria"
-                      >
-                        <Images size={17} color="white" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
-                        onPress={handlePickDocument}
-                        accessibilityLabel="Elegir de documentos"
-                      >
-                        <FileText size={17} color="white" />
-                      </TouchableOpacity>
-                      {selectedImageUri ? (
-                        <TouchableOpacity
-                          className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
-                          onPress={handleRemovePhoto}
-                          accessibilityLabel="Quitar archivo"
-                        >
-                          <Trash2 size={17} color="#f43f5e" />
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                  </View>
-                  {selectedImageUri ? (
-                    <View className="gap-3">
-                      {selectedImageMimeType === 'application/pdf' || selectedImageUri.toLowerCase().split('?')[0].endsWith('.pdf') ? (
-                        <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-40 items-center justify-center gap-2">
-                          <FileText size={40} color="#6366f1" />
-                          <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm">
-                            Documento PDF adjunto
-                          </Text>
-                          <Text className="text-slate-400 dark:text-slate-500 text-xs text-center px-4" numberOfLines={1}>
-                            {selectedImageUri.split('/').pop() || 'comprobante.pdf'}
-                          </Text>
-                        </View>
-                      ) : (
-                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
-                      )}
-                      
-                      {(type === 'expense' || type === 'shared') && (
-                        <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-105 dark:border-slate-750">
-                          {isOcrLoading ? (
-                            <View className="flex-row items-center justify-center py-2 gap-2">
-                              <ActivityIndicator size="small" color="#6366f1" />
-                              <Text className="text-slate-650 dark:text-slate-300 font-semibold text-xs">
-                                Analizando comprobante...
-                              </Text>
-                            </View>
-                          ) : ocrError ? (
-                            <View className="gap-2">
-                              <Text className="text-rose-500 text-xs font-semibold">{ocrError}</Text>
-                              <TouchableOpacity
-                                className="bg-indigo-650 active:bg-indigo-700 rounded-xl py-2.5 items-center"
-                                onPress={handleAnalyzeReceipt}
-                              >
-                                <Text className="text-white text-xs font-bold">Reintentar análisis</Text>
-                              </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <View className="flex-row items-center justify-between">
-                              <Text className="text-slate-500 dark:text-slate-400 text-xs">
-                                ¿Autocompletar campos usando IA?
-                              </Text>
-                              <TouchableOpacity
-                                className="bg-[#6366f1] active:opacity-90 rounded-xl px-4 py-2 flex-row items-center gap-1.5 shadow-sm"
-                                onPress={handleAnalyzeReceipt}
-                              >
-                                <Sparkles size={13} color="white" />
-                                <Text className="text-white text-xs font-bold">Analizar</Text>
-                              </TouchableOpacity>
-                            </View>
-                          )}
-
-                          {/* Suggested Fields */}
-                          {ocrCompletedFields.length > 0 && (
-                            <View className="mt-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 flex-row items-center gap-2.5">
-                              <Check size={15} color="#10b981" />
-                              <Text className="text-emerald-800 dark:text-emerald-300 text-xs font-medium flex-1">
-                                Campos completados: <Text className="font-bold">{ocrCompletedFields.join(', ')}</Text>
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Warnings list */}
-                          {ocrWarnings.length > 0 && (
-                            <View className="mt-3 bg-amber-50 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3 gap-1">
-                              {ocrWarnings.map((warning, idx) => (
-                                <Text key={idx} className="text-amber-800 dark:text-amber-400 text-[11px] leading-4">
-                                  • {warning}
-                                </Text>
-                              ))}
-                            </View>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
-                      <Camera size={24} color="#94a3b8" />
-                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin archivo adjunto</Text>
-                    </View>
-                  )}
                 </View>
               </ScrollView>
 
