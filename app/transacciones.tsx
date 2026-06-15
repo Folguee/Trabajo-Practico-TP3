@@ -30,13 +30,20 @@ import {
 import SidebarLayout from '../components/SidebarLayout';
 import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
 import {
-  formatDateInput,
   getCategoryConfig,
-  parseTransactionDate,
-  transactionCategories,
 } from '../constants/transactions';
 import TransactionFormSheet from '../components/TransactionFormSheet';
 import { formatCurrency } from '../utils/money';
+import {
+  endOfDay,
+  formatDateInput,
+  formatDisplayDate,
+  isInCurrentMonth,
+  isSameDay,
+  parseDateInput,
+} from '../utils/date';
+import { getCategories } from '../services/category.service';
+import type { Category } from '../types';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -61,13 +68,9 @@ const formatAmount = (transaction: Transaction) => {
   });
 };
 
-const isSameDay = (first: Date, second: Date) =>
-  first.getDate() === second.getDate() &&
-  first.getMonth() === second.getMonth() &&
-  first.getFullYear() === second.getFullYear();
-
 export default function Transacciones() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState('Todas');
@@ -116,10 +119,22 @@ export default function Transacciones() {
   };
 
   const loadTransactions = useCallback(async () => {
-    const result = await getTransactions();
-    setTransactions(result);
-    setIsLoading(false);
-    setIsRefreshing(false);
+    try {
+      const [loadedTransactions, loadedCategories] = await Promise.all([
+        getTransactions(),
+        getCategories(),
+      ]);
+      setTransactions(loadedTransactions);
+      setCategories(loadedCategories);
+    } catch (error) {
+      Alert.alert(
+        'Error de conexion',
+        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -130,33 +145,32 @@ export default function Transacciones() {
 
   const filteredTransactions = useMemo(() => {
     const today = new Date();
-    const fromDate = dateFilter === 'custom' && dateFrom ? parseTransactionDate(dateFrom) : null;
-    const toDate = dateFilter === 'custom' && dateTo ? parseTransactionDate(dateTo) : null;
+    const fromDate = dateFilter === 'custom' && dateFrom ? parseDateInput(dateFrom) : null;
+    const toDate = dateFilter === 'custom' && dateTo ? parseDateInput(dateTo) : null;
 
     return transactions.filter((transaction) => {
       const normalizedSearch = search.trim().toLowerCase();
       const matchesSearch =
         !normalizedSearch ||
         transaction.title.toLowerCase().includes(normalizedSearch) ||
-        transaction.category?.toLowerCase().includes(normalizedSearch) ||
+        transaction.categoryName.toLowerCase().includes(normalizedSearch) ||
         transaction.note?.toLowerCase().includes(normalizedSearch);
-      const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+      const matchesType =
+        typeFilter === 'all' ||
+        transaction.type === typeFilter ||
+        (typeFilter === 'expense' && transaction.type === 'shared');
       const matchesCategory =
-        categoryFilter === 'Todas' || transaction.category === categoryFilter;
-      const transactionDate = parseTransactionDate(transaction.date);
+        categoryFilter === 'Todas' || transaction.categoryId === categoryFilter;
+      const transactionDate = transaction.date;
       const matchesDate =
         dateFilter === 'all' ||
         (dateFilter === 'today' &&
-          transactionDate !== null &&
           isSameDay(transactionDate, today)) ||
         (dateFilter === 'month' &&
-          transactionDate !== null &&
-          transactionDate.getMonth() === today.getMonth() &&
-          transactionDate.getFullYear() === today.getFullYear()) ||
+          isInCurrentMonth(transactionDate, today)) ||
         (dateFilter === 'custom' &&
-          transactionDate !== null &&
           (!fromDate || transactionDate >= fromDate) &&
-          (!toDate || transactionDate <= toDate));
+          (!toDate || transactionDate <= endOfDay(toDate)));
 
       return matchesSearch && matchesType && matchesCategory && matchesDate;
     });
@@ -184,7 +198,10 @@ export default function Transacciones() {
   );
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
-    const category = getCategoryConfig(item.category);
+    const category = getCategoryConfig(
+      categories.find((entry) => entry.id === item.categoryId) ||
+        item.categoryName
+    );
     const Icon = category.icon;
     const isExpense = item.type === 'expense' || item.type === 'shared';
 
@@ -204,14 +221,14 @@ export default function Transacciones() {
             <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base" numberOfLines={1}>
               {item.title}
             </Text>
-            <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{item.date || 'Sin fecha'}</Text>
+            <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{formatDisplayDate(item.date)}</Text>
           </View>
         </View>
         <View className="items-end ml-3">
           <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-base`}>
             {formatAmount(item)}
           </Text>
-          <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{item.category || 'Sin categoria'}</Text>
+          <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{item.categoryName}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -268,17 +285,17 @@ export default function Transacciones() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
         <View className="flex-row gap-2">
-          {['Todas', ...transactionCategories.map((category) => category.name)].map((category) => {
-            const isActive = categoryFilter === category;
+          {[{ id: 'Todas', name: 'Todas' }, ...categories].map((category) => {
+            const isActive = categoryFilter === category.id;
 
             return (
               <TouchableOpacity
-                key={category}
+                key={category.id}
                 className={`px-4 py-2 rounded-full ${isActive ? 'bg-slate-950' : 'bg-slate-200/60 dark:bg-gray-700'}`}
-                onPress={() => setCategoryFilter(category)}
+                onPress={() => setCategoryFilter(category.id)}
               >
                 <Text className={`font-semibold ${isActive ? 'text-white' : 'text-slate-600 dark:text-gray-300'}`}>
-                  {category}
+                  {category.name}
                 </Text>
               </TouchableOpacity>
             );
@@ -413,7 +430,10 @@ export default function Transacciones() {
             <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 mt-1" />
             
             {selectedTx && (() => {
-              const category = getCategoryConfig(selectedTx.category);
+              const category = getCategoryConfig(
+                categories.find((entry) => entry.id === selectedTx.categoryId) ||
+                  selectedTx.categoryName
+              );
               const Icon = category.icon;
               const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
               const isShared = selectedTx.type === 'shared';
@@ -456,7 +476,7 @@ export default function Transacciones() {
                       <View>
                         <Text className="text-slate-400 dark:text-slate-500 text-xs">Tipo y Categoría</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.category || 'Sin categoría'}
+                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.categoryName}
                         </Text>
                       </View>
                     </View>
@@ -469,7 +489,7 @@ export default function Transacciones() {
                       <View>
                         <Text className="text-slate-400 dark:text-slate-500 text-xs">Fecha</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {selectedTx.date || 'Sin fecha'}
+                          {formatDisplayDate(selectedTx.date)}
                         </Text>
                       </View>
                     </View>

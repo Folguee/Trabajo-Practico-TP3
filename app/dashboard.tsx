@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
-import { getCategoryConfig, parseTransactionDate } from '../constants/transactions';
+import { getCategoryConfig } from '../constants/transactions';
 import {
   Plus,
   Wallet,
@@ -31,6 +31,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import { LinearGradient } from 'expo-linear-gradient';
 import TransactionFormSheet from '../components/TransactionFormSheet';
 import { formatCurrency } from '../utils/money';
+import { formatDisplayDate } from '../utils/date';
 
 export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -42,9 +43,16 @@ export default function Dashboard() {
   const [formTxId, setFormTxId] = useState<number | null>(null);
 
   const loadTransactions = useCallback(async () => {
-    const result = await getTransactions();
-    setTransactions(result);
-    setIsLoading(false);
+    try {
+      setTransactions(await getTransactions());
+    } catch (error) {
+      Alert.alert(
+        'Error de conexion',
+        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const handleDeleteSelected = async () => {
@@ -97,17 +105,10 @@ export default function Dashboard() {
       }
     });
 
-    const sorted = [...transactions].sort((a, b) => {
-      const dateA = parseTransactionDate(a.date);
-      const dateB = parseTransactionDate(b.date);
-      if (!dateA || !dateB) return 0;
-      return dateB.getTime() - dateA.getTime();
-    });
-
     return {
       totalIncome: income,
       totalExpense: expense,
-      recentTransactions: sorted.slice(0, 4),
+      recentTransactions: transactions.slice(0, 4),
     };
   }, [transactions]);
 
@@ -139,7 +140,7 @@ export default function Dashboard() {
   );
 
   const renderRecentTransaction = (item: Transaction) => {
-    const category = getCategoryConfig(item.category);
+    const category = getCategoryConfig(item.categoryName);
     const Icon = category.icon;
     const isExpense = item.type === 'expense' || item.type === 'shared';
 
@@ -160,14 +161,14 @@ export default function Dashboard() {
             <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm" numberOfLines={1}>
               {item.title}
             </Text>
-            <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.date || 'Sin fecha'}</Text>
+            <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{formatDisplayDate(item.date)}</Text>
           </View>
         </View>
         <View className="items-end ml-3">
           <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-sm`}>
             {formatCurrency(item.amount, { sign: isExpense ? 'negative' : 'positive' })}
           </Text>
-          <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.category || 'Sin categoría'}</Text>
+          <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.categoryName}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -317,7 +318,7 @@ export default function Dashboard() {
             <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 mt-1" />
             
             {selectedTx && (() => {
-              const category = getCategoryConfig(selectedTx.category);
+              const category = getCategoryConfig(selectedTx.categoryName);
               const Icon = category.icon;
               const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
               const isShared = selectedTx.type === 'shared';
@@ -360,7 +361,7 @@ export default function Dashboard() {
                       <View>
                         <Text className="text-slate-400 dark:text-slate-500 text-xs">Tipo y Categoría</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.category || 'Sin categoría'}
+                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.categoryName}
                         </Text>
                       </View>
                     </View>
@@ -373,7 +374,7 @@ export default function Dashboard() {
                       <View>
                         <Text className="text-slate-400 dark:text-slate-500 text-xs">Fecha</Text>
                         <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {selectedTx.date || 'Sin fecha'}
+                          {formatDisplayDate(selectedTx.date)}
                         </Text>
                       </View>
                     </View>

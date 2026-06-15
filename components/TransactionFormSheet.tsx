@@ -26,30 +26,27 @@ import {
 import {
   addTransaction,
   getTransactionById,
-  Transaction,
+  TransactionInput,
   updateTransaction,
 } from '../services/transaction.service';
-import { useAuthStore } from '../store/authStore';
-import {
-  formatDateInput,
-  parseTransactionDate,
-  transactionCategories,
-} from '../constants/transactions';
+import { getCategoryConfig } from '../constants/transactions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMoneyInput, validateMoneyInput } from '../utils/money';
+import { formatDateInput, formatDisplayDate, parseDateInput } from '../utils/date';
 import { deleteReceipt, uploadReceipt } from '../services/receipt.service';
 import {
   pickReceiptFromLibrary,
   takeReceiptPhoto,
 } from '../services/receipt-picker.service';
-
-type TransactionType = 'income' | 'expense' | 'shared';
+import { getCategories } from '../services/category.service';
+import type { Category, TransactionType } from '../types';
 
 interface TransactionFormSheetProps {
   visible: boolean;
   onClose: () => void;
   transactionId?: number | null;
   onSaveSuccess: () => void;
+  initialType?: 'income' | 'expense';
 }
 
 export default function TransactionFormSheet({
@@ -57,15 +54,16 @@ export default function TransactionFormSheet({
   onClose,
   transactionId,
   onSaveSuccess,
+  initialType = 'expense',
 }: TransactionFormSheetProps) {
-  const user = useAuthStore((state) => state.user);
   const insets = useSafeAreaInsets();
   const isEditing = Boolean(transactionId);
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [type, setType] = useState<TransactionType>('expense');
-  const [category, setCategory] = useState(transactionCategories[0].name);
+  const [type, setType] = useState<TransactionType>(initialType);
+  const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [selectedImageUri, setSelectedImageUri] = useState('');
@@ -80,39 +78,38 @@ export default function TransactionFormSheet({
 
   // Cargar transacción si estamos editando
   const loadTransaction = useCallback(async () => {
-    if (!transactionId) {
-      // Resetear formulario para nueva transacción
-      setTitle('');
-      setAmount('');
-      setAmountError('');
-      setType('expense');
-      setCategory(transactionCategories[0].name);
-      // Poner fecha de hoy por defecto
-      const today = new Date();
-      const dayStr = String(today.getDate()).padStart(2, '0');
-      const monthStr = String(today.getMonth() + 1).padStart(2, '0');
-      const yearStr = today.getFullYear();
-      setDate(`${dayStr}/${monthStr}/${yearStr}`);
-      setNote('');
-      setSelectedImageUri('');
-      setSelectedImageMimeType(null);
-      setOriginalImagePath(null);
-      setImageChanged(false);
-      setDateError('');
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     try {
+      const loadedCategories = await getCategories();
+      setCategories(loadedCategories);
+
+      if (!transactionId) {
+        const defaultCategory =
+          loadedCategories.find((item) => item.type === initialType) ||
+          loadedCategories[0];
+        setTitle('');
+        setAmount('');
+        setAmountError('');
+        setType(initialType);
+        setCategoryId(defaultCategory?.id || '');
+        setDate(formatDisplayDate(new Date()));
+        setNote('');
+        setSelectedImageUri('');
+        setSelectedImageMimeType(null);
+        setOriginalImagePath(null);
+        setImageChanged(false);
+        setDateError('');
+        return;
+      }
+
       const transaction = await getTransactionById(transactionId);
       if (transaction) {
         setTitle(transaction.title);
         setAmount(formatMoneyInput(transaction.amount));
         setAmountError('');
         setType(transaction.type);
-        setCategory(transaction.category || 'Alimentacion');
-        setDate(transaction.date || '');
+        setCategoryId(transaction.categoryId);
+        setDate(formatDisplayDate(transaction.date));
         setNote(transaction.note || '');
         setSelectedImageUri(transaction.imageUrl || '');
         setSelectedImageMimeType(null);
@@ -125,11 +122,11 @@ export default function TransactionFormSheet({
       }
     } catch (error) {
       console.error('Error cargando transacción:', error);
-      Alert.alert('Error', 'No se pudieron cargar los detalles.');
+      Alert.alert('Error', 'No se pudo cargar el formulario.');
     } finally {
       setIsLoading(false);
     }
-  }, [transactionId, onClose]);
+  }, [initialType, transactionId, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -139,7 +136,10 @@ export default function TransactionFormSheet({
 
   const handleTypeChange = (nextType: TransactionType) => {
     setType(nextType);
-    setCategory(nextType === 'income' ? 'Ingresos' : 'Alimentacion');
+    const categoryType = nextType === 'income' ? 'income' : 'expense';
+    setCategoryId(
+      categories.find((category) => category.type === categoryType)?.id || ''
+    );
   };
 
   const setPickedPhoto = (picked: { uri: string; mimeType?: string | null }) => {
@@ -188,7 +188,7 @@ export default function TransactionFormSheet({
     setDate(formatted);
 
     if (formatted.length === 10) {
-      if (!parseTransactionDate(formatted)) {
+      if (!parseDateInput(formatted)) {
         setDateError('Fecha inválida');
         triggerShake();
       } else {
@@ -205,24 +205,24 @@ export default function TransactionFormSheet({
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !amount.trim() || !category || !date.trim()) {
+    if (!title.trim() || !amount.trim() || !categoryId || !date.trim()) {
       Alert.alert('Datos incompletos', 'Completa título, monto, tipo, categoría y fecha.');
       return;
     }
 
     const amountValidation = validateMoneyInput(amount);
     if (!amountValidation.valid) {
-      setAmountError(amountValidation.error);
+      setAmountError(
+        'error' in amountValidation
+          ? amountValidation.error
+          : 'Monto invalido'
+      );
       return;
     }
 
-    if (!parseTransactionDate(date.trim())) {
+    const parsedDate = parseDateInput(date.trim());
+    if (!parsedDate) {
       Alert.alert('Fecha inválida', 'Ingresa una fecha válida en formato DD/MM/AAAA.');
-      return;
-    }
-
-    if (!user) {
-      Alert.alert('Sesión requerida', 'Inicia sesión para guardar el movimiento.');
       return;
     }
 
@@ -237,15 +237,22 @@ export default function TransactionFormSheet({
       }
 
       const nextImagePath = imageChanged ? uploadedImagePath : originalImagePath;
-      const payload: Omit<Transaction, 'id' | 'status'> = {
+      const selectedCategory = categories.find(
+        (category) => category.id === categoryId
+      );
+      if (!selectedCategory) {
+        throw new Error('La categoria seleccionada ya no existe');
+      }
+
+      const payload: TransactionInput = {
         title: title.trim(),
         amount: amountValidation.value,
         type,
-        category,
-        date: date.trim(),
+        categoryId: selectedCategory.id,
+        categoryName: selectedCategory.name,
+        date: parsedDate,
         note: note.trim(),
         imagePath: nextImagePath,
-        userId: user.uid,
       };
 
       if (transactionId) {
@@ -334,7 +341,13 @@ export default function TransactionFormSheet({
                       onChangeText={handleAmountChange}
                       onBlur={() => {
                         const validation = validateMoneyInput(amount);
-                        setAmountError(validation.valid ? '' : validation.error);
+                        setAmountError(
+                          validation.valid
+                            ? ''
+                            : 'error' in validation
+                              ? validation.error
+                              : 'Monto invalido'
+                        );
                       }}
                     />
                   </View>
@@ -413,25 +426,30 @@ export default function TransactionFormSheet({
                 {/* Categorías */}
                 <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-3 shadow-sm">
                   <Text className="text-slate-650 dark:text-slate-300 font-bold text-sm mb-3">Categoría</Text>
-                  {transactionCategories
-                    .filter((item) => (type === 'income' ? item.name === 'Ingresos' : item.name !== 'Ingresos'))
+                  {categories
+                    .filter((item) =>
+                      type === 'income'
+                        ? item.type === 'income'
+                        : item.type === 'expense'
+                    )
                     .map((item) => {
-                      const Icon = item.icon;
-                      const isSelected = item.name === category;
+                      const categoryConfig = getCategoryConfig(item);
+                      const Icon = categoryConfig.icon;
+                      const isSelected = item.id === categoryId;
 
                       return (
                         <TouchableOpacity
-                          key={item.name}
+                          key={item.id}
                           className={`rounded-2xl p-3 flex-row items-center justify-between mb-2 ${
                             isSelected
                               ? 'bg-[#0f172a] dark:bg-indigo-600'
                               : 'bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700'
                           }`}
-                          onPress={() => setCategory(item.name)}
+                          onPress={() => setCategoryId(item.id)}
                         >
                           <View className="flex-row items-center gap-3.5">
-                            <View className={`${item.bgColor} w-10 h-10 rounded-full items-center justify-center shadow-sm`}>
-                              <Icon size={20} color={item.iconColor} />
+                            <View className={`${categoryConfig.bgColor} w-10 h-10 rounded-full items-center justify-center shadow-sm`}>
+                              <Icon size={20} color={categoryConfig.iconColor} />
                             </View>
                             <Text className={`font-semibold text-sm ${isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>
                               {item.name}

@@ -27,6 +27,7 @@ import {
 import { getCategoryConfig } from '../constants/transactions';
 import { useAuthStore } from '../store/authStore';
 import { formatCurrency } from '../utils/money';
+import { formatDisplayDate } from '../utils/date';
 
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
@@ -45,9 +46,17 @@ export default function TransactionDetailScreen() {
       return;
     }
 
-    const result = await getTransactionById(id);
-    setTransaction(result);
-    setIsLoading(false);
+    try {
+      setTransaction(await getTransactionById(id));
+    } catch (error) {
+      Alert.alert(
+        'Error de conexion',
+        error instanceof Error ? error.message : 'No se pudo cargar el movimiento.'
+      );
+      setTransaction(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
 
   useFocusEffect(
@@ -130,7 +139,7 @@ export default function TransactionDetailScreen() {
     );
   }
 
-  const category = getCategoryConfig(transaction.category);
+  const category = getCategoryConfig(transaction.categoryName);
   const Icon = category.icon;
   const isExpense = transaction.type === 'expense' || transaction.type === 'shared';
   const currentUserId = currentUser?.uid;
@@ -198,7 +207,7 @@ export default function TransactionDetailScreen() {
             <View>
               <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Tipo y categoria</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
-                {transaction.type === 'shared' ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {transaction.category || 'Sin categoria'}
+                {transaction.type === 'shared' ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {transaction.categoryName}
               </Text>
             </View>
           </View>
@@ -210,7 +219,7 @@ export default function TransactionDetailScreen() {
             <View>
               <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Fecha</Text>
               <Text className="text-slate-800 dark:text-gray-100 font-semibold text-base">
-                {transaction.date || 'Sin fecha'}
+                {formatDisplayDate(transaction.date)}
               </Text>
             </View>
           </View>
