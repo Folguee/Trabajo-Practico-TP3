@@ -65,6 +65,7 @@ describe('Transaction Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser.uid = 'user_universidad_123';
+    vi.mocked(getDocs).mockResolvedValue({ docs: [] } as never);
   });
 
   it('guarda la fecha como Timestamp y fuerza el UID autenticado', async () => {
@@ -171,22 +172,69 @@ describe('Transaction Service', () => {
     expect(getDocs).not.toHaveBeenCalled();
   });
 
-  it('ignora cualquier userId externo porque no forma parte del input', async () => {
+  it('guarda un gasto compartido con el creador autenticado', async () => {
     await addTransaction({
       ...baseInput,
-      detalleCompartido: {
-        total: 9000,
-        pagadoPorMi: 4500,
-        pagadoPorAmigo: 4500,
-      },
+      type: 'shared',
+      amount: 4500,
+      creatorUid: mockUser.uid,
+      participantUids: [mockUser.uid, 'friend-1'],
+      participants: [
+        {
+          uid: mockUser.uid,
+          nombre: 'Alumno',
+          amount: 4500,
+          percentage: 50,
+        },
+        {
+          uid: 'friend-1',
+          nombre: 'Amiga',
+          amount: 4500,
+          percentage: 50,
+        },
+      ],
+      payerUid: mockUser.uid,
+      totalAmount: 9000,
+      splitMode: 'equal',
     });
 
     expect(addDoc).toHaveBeenCalledWith(
       undefined,
       expect.objectContaining({
         userId: mockUser.uid,
-        detalleCompartido: expect.objectContaining({ total: 9000 }),
+        creatorUid: mockUser.uid,
+        participantUids: [mockUser.uid, 'friend-1'],
+        totalAmount: 9000,
       })
     );
+  });
+
+  it('combina consultas y adapta el monto compartido al usuario actual', async () => {
+    const sharedData = {
+      ...baseInput,
+      type: 'shared',
+      userId: 'friend-1',
+      creatorUid: 'friend-1',
+      participantUids: ['friend-1', mockUser.uid],
+      participants: [
+        { uid: 'friend-1', nombre: 'Amiga', amount: 7000, percentage: 70 },
+        { uid: mockUser.uid, nombre: 'Alumno', amount: 3000, percentage: 30 },
+      ],
+      payerUid: 'friend-1',
+      totalAmount: 10000,
+      splitMode: 'percentage',
+      date: Timestamp.fromDate(baseInput.date),
+    };
+    vi.mocked(getDocs)
+      .mockResolvedValueOnce({ docs: [] } as never)
+      .mockResolvedValueOnce({
+        docs: [{ id: 'shared-1', data: () => sharedData }],
+      } as never);
+
+    const transactions = await getTransactions();
+
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].amount).toBe(3000);
+    expect(transactions[0].totalAmount).toBe(10000);
   });
 });
