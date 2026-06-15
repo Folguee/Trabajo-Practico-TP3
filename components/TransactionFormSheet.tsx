@@ -89,6 +89,16 @@ export default function TransactionFormSheet({
   const [titleError, setTitleError] = useState('');
   const [dateError, setDateError] = useState('');
   const [amountError, setAmountError] = useState('');
+  const [categoryError, setCategoryError] = useState('');
+  const [sharedError, setSharedError] = useState('');
+  const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState<PublicUser[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [payerUid, setPayerUid] = useState('');
+  const [splitMode, setSplitMode] = useState<SharedSplitMode>('equal');
+  const [splitValues, setSplitValues] = useState<Record<string, string>>({});
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
@@ -164,6 +174,13 @@ export default function TransactionFormSheet({
         setOriginalImagePath(null);
         setImageChanged(false);
         setDateError('');
+        setCategoryError('');
+        setSharedError('');
+        setSelectedUsers(me ? [me] : []);
+        setPayerUid(me?.uid || '');
+        setSplitMode('equal');
+        setSplitValues({});
+        setUserSearch('');
         setOcrError(null);
         setOcrWarnings([]);
         setOcrCompletedFields([]);
@@ -209,6 +226,36 @@ export default function TransactionFormSheet({
         setOriginalImagePath(transaction.imagePath || null);
         setImageChanged(false);
         setDateError('');
+        setCategoryError('');
+        setSharedError('');
+        if (transaction.type === 'shared' && transaction.participants) {
+          setSelectedUsers(
+            transaction.participants.map((participant) => ({
+              uid: participant.uid,
+              nombre: participant.nombre,
+              nombreLower: participant.nombre.toLocaleLowerCase('es'),
+            }))
+          );
+          setPayerUid(transaction.payerUid || transaction.creatorUid || '');
+          setSplitMode(transaction.splitMode || 'equal');
+          setSplitValues(
+            Object.fromEntries(
+              transaction.participants.map((participant) => [
+                participant.uid,
+                String(
+                  transaction.splitMode === 'percentage'
+                    ? participant.percentage
+                    : participant.amount
+                ),
+              ])
+            )
+          );
+        } else {
+          setSelectedUsers(me ? [me] : []);
+          setPayerUid(me?.uid || '');
+          setSplitMode('equal');
+          setSplitValues({});
+        }
         setOcrError(null);
         setOcrWarnings([]);
         setOcrCompletedFields([]);
