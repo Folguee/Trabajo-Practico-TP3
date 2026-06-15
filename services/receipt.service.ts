@@ -92,8 +92,13 @@ export async function uploadReceipt({
   return body.path;
 }
 
-export async function getReceiptSignedUrl(path: string): Promise<string> {
-  const response = await request(`?path=${encodeURIComponent(path)}`);
+export async function getReceiptSignedUrl(
+  path: string,
+  transactionId?: string
+): Promise<string> {
+  const params = new URLSearchParams({ path });
+  if (transactionId) params.set('transactionId', transactionId);
+  const response = await request(`?${params.toString()}`);
   const body = await response.json();
 
   if (!body?.signedUrl) {
@@ -103,13 +108,19 @@ export async function getReceiptSignedUrl(path: string): Promise<string> {
   return body.signedUrl;
 }
 
-export async function deleteReceipt(path: string): Promise<void> {
-  await request(`?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+export async function deleteReceipt(
+  path: string,
+  transactionId?: string
+): Promise<void> {
+  const params = new URLSearchParams({ path });
+  if (transactionId) params.set('transactionId', transactionId);
+  await request(`?${params.toString()}`, { method: 'DELETE' });
 }
 
 export async function resolveReceiptUrl(
-  imagePath?: string | null
+  imagePath?: string | null,
+  transactionId?: string
 ): Promise<string | undefined> {
   if (!imagePath) return undefined;
-  return getReceiptSignedUrl(imagePath);
+  return getReceiptSignedUrl(imagePath, transactionId);
 }
