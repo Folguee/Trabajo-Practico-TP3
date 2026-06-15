@@ -56,6 +56,7 @@ const inferMimeType = (uri: string) => {
   const normalized = uri.toLowerCase().split('?')[0];
   if (normalized.endsWith('.png')) return 'image/png';
   if (normalized.endsWith('.webp')) return 'image/webp';
+  if (normalized.endsWith('.pdf')) return 'application/pdf';
   return 'image/jpeg';
 };
 

@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts"
+    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts services/tests/receipt-assets.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -21,7 +21,9 @@
     "babel-preset-expo": "^56.0.13",
     "expo": "~54.0.35",
     "expo-constants": "~18.0.13",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.23",
+    "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
@@ -49,6 +51,7 @@
     "@types/node": "^25.6.0",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2",
+    "unpdf": "^1.6.2",
     "vitest": "^4.1.8"
   },
   "private": true

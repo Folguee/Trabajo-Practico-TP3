@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 
 export type PickedReceipt = {
   uri: string;
@@ -38,5 +39,19 @@ export async function takeReceiptPhoto(): Promise<PickedReceipt | null> {
   return {
     uri: result.assets[0].uri,
     mimeType: result.assets[0].mimeType,
+  };
+}
+
+export async function pickReceiptDocument(): Promise<PickedReceipt | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['application/pdf', 'image/jpeg', 'image/png'],
+    copyToCacheDirectory: true,
+  });
+
+  if (result.canceled || !result.assets?.[0]) return null;
+
+  return {
+    uri: result.assets[0].uri,
+    mimeType: result.assets[0].mimeType || null,
   };
 }
