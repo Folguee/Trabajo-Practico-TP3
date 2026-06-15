@@ -65,28 +65,35 @@ const mapTransaction = async (
 
 export async function getTransactions(): Promise<Transaction[]> {
   const user = requireUser();
-  const [personalSnapshot, sharedSnapshot] = await Promise.all([
-    getDocs(
-      query(
-        collection(db, 'transactions'),
-        where('userId', '==', user.uid),
-        orderBy('date', 'desc')
-      )
-    ),
-    getDocs(
+  const personalSnapshot = await getDocs(
+    query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      orderBy('date', 'desc')
+    )
+  );
+
+  let sharedDocuments: typeof personalSnapshot.docs = [];
+  try {
+    const sharedSnapshot = await getDocs(
       query(
         collection(db, 'transactions'),
         where('participantUids', 'array-contains', user.uid),
         orderBy('date', 'desc')
       )
-    ),
-  ]);
+    );
+    sharedDocuments = sharedSnapshot.docs;
+  } catch (error) {
+    // Personal transactions remain available while shared-query rules/indexes
+    // are being deployed or temporarily unavailable.
+    console.warn('No se pudieron cargar los movimientos compartidos:', error);
+  }
 
   const documents = new Map<
     string,
     { id: string; data: Record<string, unknown> }
   >();
-  [...personalSnapshot.docs, ...sharedSnapshot.docs].forEach((item) => {
+  [...personalSnapshot.docs, ...sharedDocuments].forEach((item) => {
     documents.set(item.id, {
       id: item.id,
       data: item.data() as Record<string, unknown>,
