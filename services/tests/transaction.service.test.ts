@@ -119,6 +119,10 @@ describe('Transaction Service', () => {
   });
 
   it('mantiene la lista aunque falle una URL firmada', async () => {
+    // El servicio loguea el fallo con console.warn de forma intencional.
+    // Lo silenciamos para no ensuciar la salida de los tests.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
     vi.mocked(resolveReceiptUrl).mockRejectedValueOnce(
       new Error('Supabase no disponible')
     );
@@ -142,6 +146,9 @@ describe('Transaction Service', () => {
     expect(transactions).toHaveLength(1);
     expect(transactions[0].imagePath).toBe('user/receipt.jpg');
     expect(transactions[0].imageUrl).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 
   it('borra físicamente una transacción propia', async () => {
