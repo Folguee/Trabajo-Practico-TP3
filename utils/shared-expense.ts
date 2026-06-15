@@ -88,6 +88,44 @@ export function calculateSharedParticipants(
   }));
 }
 
+export function validateAndCalculateSharedParticipants(
+  total: number,
+  users: PublicUser[],
+  payerUid: string,
+  mode: SharedSplitMode,
+  rawValues: Record<string, string>
+): SharedParticipant[] {
+  validateUsers(users);
+
+  if (!users.some((user) => user.uid === payerUid)) {
+    throw new Error('Selecciona quién pagó el gasto');
+  }
+
+  if (mode === 'equal') {
+    return calculateSharedParticipants(total, users, mode);
+  }
+
+  const values = users.map((user) => {
+    const rawValue = rawValues[user.uid]?.trim().replace(',', '.') ?? '';
+    const fieldName = mode === 'percentage' ? 'porcentaje' : 'monto';
+
+    if (!rawValue) {
+      throw new Error(`Completa el ${fieldName} de ${user.nombre}`);
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(
+        `Ingresa un ${fieldName} mayor a cero para ${user.nombre}`
+      );
+    }
+
+    return { uid: user.uid, value };
+  });
+
+  return calculateSharedParticipants(total, users, mode, values);
+}
+
 export const getParticipantShare = (
   participants: SharedParticipant[] | undefined,
   uid: string
