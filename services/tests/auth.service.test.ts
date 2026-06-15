@@ -3,6 +3,7 @@ import { register } from '../auth.service';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, getNextNumericId } from '../firebase';
+import { ensureDefaultCategories } from '../category.service';
 
 /*
   Este test usa mocks de Firebase Auth y Firestore.
@@ -31,6 +32,10 @@ vi.mock('../firebase', () => ({
   db: {},
   auth: {},
   getNextNumericId: vi.fn().mockResolvedValue(1),
+}));
+
+vi.mock('../category.service', () => ({
+  ensureDefaultCategories: vi.fn(),
 }));
 
 describe('Auth Service - registro', () => {
@@ -85,5 +90,6 @@ describe('Auth Service - registro', () => {
       telefono: phone,
       email,
     }));
+    expect(ensureDefaultCategories).toHaveBeenCalledWith(user.uid);
   });
 });

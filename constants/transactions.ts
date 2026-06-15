@@ -7,89 +7,56 @@ import {
   ShoppingCart,
   Wallet,
 } from 'lucide-react-native';
+import type { Category, CategoryType } from '../types';
 
-export const transactionCategories = [
-  {
-    name: 'Alimentacion',
-    icon: ShoppingCart,
-    iconColor: '#f43f5e',
-    bgColor: 'bg-rose-100',
-  },
-  {
-    name: 'Transporte',
-    icon: Car,
-    iconColor: '#10b981',
-    bgColor: 'bg-emerald-100',
-  },
-  {
-    name: 'Hogar',
-    icon: Home,
-    iconColor: '#2563eb',
-    bgColor: 'bg-blue-100',
-  },
-  {
-    name: 'Servicios',
-    icon: MonitorSmartphone,
-    iconColor: '#9333ea',
-    bgColor: 'bg-purple-100',
-  },
-  {
-    name: 'Salud',
-    icon: HeartPulse,
-    iconColor: '#dc2626',
-    bgColor: 'bg-red-100',
-  },
-  {
-    name: 'Ocio',
-    icon: Coffee,
-    iconColor: '#d97706',
-    bgColor: 'bg-amber-100',
-  },
-  {
-    name: 'Ingresos',
-    icon: Wallet,
-    iconColor: '#059669',
-    bgColor: 'bg-emerald-100',
-  },
+export const DEFAULT_CATEGORIES: Array<
+  Omit<Category, 'id' | 'userId'>
+> = [
+  { name: 'Alimentacion', type: 'expense', color: 'rose', icon: 'shopping-cart' },
+  { name: 'Transporte', type: 'expense', color: 'emerald', icon: 'car' },
+  { name: 'Hogar', type: 'expense', color: 'blue', icon: 'home' },
+  { name: 'Servicios', type: 'expense', color: 'purple', icon: 'monitor' },
+  { name: 'Salud', type: 'expense', color: 'red', icon: 'heart-pulse' },
+  { name: 'Ocio', type: 'expense', color: 'amber', icon: 'coffee' },
+  { name: 'Ingresos', type: 'income', color: 'emerald', icon: 'wallet' },
 ];
 
-export const getCategoryConfig = (category?: string) => {
-  return (
-    transactionCategories.find((item) => item.name === category) ||
-    transactionCategories[0]
-  );
+const ICONS = {
+  'shopping-cart': ShoppingCart,
+  car: Car,
+  home: Home,
+  monitor: MonitorSmartphone,
+  'heart-pulse': HeartPulse,
+  coffee: Coffee,
+  wallet: Wallet,
 };
 
-export const formatDateInput = (value: string) => {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+const COLORS: Record<string, { iconColor: string; bgColor: string }> = {
+  rose: { iconColor: '#f43f5e', bgColor: 'bg-rose-100' },
+  emerald: { iconColor: '#10b981', bgColor: 'bg-emerald-100' },
+  blue: { iconColor: '#2563eb', bgColor: 'bg-blue-100' },
+  purple: { iconColor: '#9333ea', bgColor: 'bg-purple-100' },
+  red: { iconColor: '#dc2626', bgColor: 'bg-red-100' },
+  amber: { iconColor: '#d97706', bgColor: 'bg-amber-100' },
 };
 
-export const parseTransactionDate = (value?: string) => {
-  if (!value) return null;
+export const getCategoryConfig = (
+  category?: Pick<Category, 'icon' | 'color' | 'name'> | string
+) => {
+  const fallback = DEFAULT_CATEGORIES[0];
+  const source =
+    typeof category === 'string'
+      ? DEFAULT_CATEGORIES.find((item) => item.name === category) || fallback
+      : category || fallback;
+  const colors = COLORS[source.color] || COLORS.rose;
 
-  const parts = value.split('/');
-  if (parts.length !== 3) return null;
-
-  const [day, month, year] = parts.map(Number);
-  if (!day || !month || !year) return null;
-  if (month < 1 || month > 12) return null;
-  if (day < 1 || day > 31) return null;
-
-  const parsedDate = new Date(year, month - 1, day);
-  if (Number.isNaN(parsedDate.getTime())) return null;
-
-  if (
-    parsedDate.getDate() !== day ||
-    parsedDate.getMonth() !== month - 1 ||
-    parsedDate.getFullYear() !== year
-  ) {
-    return null;
-  }
-
-  return parsedDate;
+  return {
+    ...source,
+    icon: ICONS[source.icon as keyof typeof ICONS] || ShoppingCart,
+    ...colors,
+  };
 };
+
+export const getDefaultCategory = (type: CategoryType) =>
+  DEFAULT_CATEGORIES.find((category) => category.type === type) ||
+  DEFAULT_CATEGORIES[0];

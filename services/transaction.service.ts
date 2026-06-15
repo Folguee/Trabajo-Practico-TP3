@@ -1,173 +1,136 @@
-/* Transaction Service 
-Este archivo es tu “puente” con Firebase (Firestore).
-*/
-
-import { db, auth, getNextNumericId } from './firebase';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
+import type { Transaction, TransactionInput } from '../types';
+import { firestoreDateToDate } from '../utils/date';
+import { auth, db, getNextNumericId } from './firebase';
 import { deleteReceipt, resolveReceiptUrl } from './receipt.service';
 
-export type Transaction = {
-  id: number;
-  type: 'income' | 'expense' | 'shared';
-  amount: number;
-  title: string;
-  date?: string;
-  category?: string;
-  note?: string;
-  imagePath?: string | null;
-  imageUrl?: string;
-  userId: string;
-  myShare?: number;
-  creatorUid?: string;
-  creatorNombre?: string;
-  amigoUid?: string;
-  amigoNombre?: string;
-  parteCreador?: number;
-  parteAmigo?: number;
-  sharedWith?: {
-    uid?: string;
-    phone: string;
-    name: string;
-    amount: number;
-  };
-  detalleCompartido?: {
-    total: number;
-    pagadoPorMi: number;
-    pagadoPorAmigo: number;
-    amigo?: {
-      uid?: string;
-      nombre?: string;
-      telefono?: string;
-      email?: string;
-    };
-  };
-  status: 'agregado' | 'eliminado';
+export type { Transaction, TransactionInput } from '../types';
+
+const requireUser = () => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('No hay un usuario autenticado');
+  return user;
 };
 
-export const getTransactions = async (): Promise<Transaction[]> => {
-  const user = auth.currentUser;
-  if (!user) return [];
+const mapTransaction = async (
+  id: string,
+  raw: Record<string, unknown>
+): Promise<Transaction> => {
+  let imageUrl: string | undefined;
+  const imagePath =
+    typeof raw.imagePath === 'string' ? raw.imagePath : undefined;
 
-  const q = query(
-    collection(db, 'transactions'),
-    where('userId', '==', user.uid),
-    where('status', '==', 'agregado')
-  );
-
-  const snapshot = await getDocs(q);
-
-  return Promise.all(
-    snapshot.docs.map(async (docSnap) => {
-      const data = docSnap.data() as Transaction;
-      return {
-        ...data,
-        id: Number(data.id ?? 0),
-        imageUrl: await resolveReceiptUrl(data.imagePath),
-      };
-    })
-  );
-};
-
-export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'status'>) => {
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('No hay un usuario autenticado');
+  if (imagePath) {
+    try {
+      imageUrl = await resolveReceiptUrl(imagePath);
+    } catch (error) {
+      console.warn(`No se pudo firmar el comprobante ${imagePath}:`, error);
+    }
   }
 
+  return {
+    ...(raw as Omit<Transaction, 'id' | 'date' | 'imageUrl'>),
+    id: Number(raw.id ?? id),
+    date: firestoreDateToDate(raw.date),
+    createdAt: raw.createdAt ? firestoreDateToDate(raw.createdAt) : undefined,
+    updatedAt: raw.updatedAt ? firestoreDateToDate(raw.updatedAt) : undefined,
+    imageUrl,
+  };
+};
+
+export async function getTransactions(): Promise<Transaction[]> {
+  const user = requireUser();
+  const snapshot = await getDocs(
+    query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      orderBy('date', 'desc')
+    )
+  );
+
+  return Promise.all(
+    snapshot.docs.map((item) => mapTransaction(item.id, item.data()))
+  );
+}
+
+export async function addTransaction(input: TransactionInput): Promise<number> {
+  const user = requireUser();
   const nextId = await getNextNumericId('transactionIdCounter');
 
   await setDoc(doc(db, 'transactions', String(nextId)), {
+    ...input,
     id: nextId,
-    ...transaction,
-    userId: transaction.userId || user.uid,
-    status: 'agregado',
+    userId: user.uid,
+    date: Timestamp.fromDate(input.date),
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
-};
 
-export const getTransactionById = async (id: string | number): Promise<Transaction | null> => {
-  const user = auth.currentUser;
-  if (!user) return null;
+  return nextId;
+}
 
+export async function getTransactionById(
+  id: string | number
+): Promise<Transaction | null> {
+  const user = requireUser();
   const snapshot = await getDoc(doc(db, 'transactions', String(id)));
   if (!snapshot.exists()) return null;
 
-  const data = snapshot.data() as Transaction;
+  const data = snapshot.data();
   if (data.userId !== user.uid) return null;
+  return mapTransaction(snapshot.id, data);
+}
 
-  return {
-    ...(data as Transaction),
-    id: Number(data.id ?? Number(id)),
-    imageUrl: await resolveReceiptUrl(data.imagePath),
-  };
-};
-
-export const updateTransaction = async (
+export async function updateTransaction(
   id: string | number,
-  transaction: Partial<Omit<Transaction, 'id'>>
-) => {
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('No hay un usuario autenticado');
+  input: Partial<TransactionInput>
+): Promise<void> {
+  const user = requireUser();
+  const ref = doc(db, 'transactions', String(id));
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists()) throw new Error('La transaccion no existe');
+  if (snapshot.data().userId !== user.uid) {
+    throw new Error('No tienes permiso para modificar esta transaccion');
   }
 
-  const snapshot = await getDoc(doc(db, 'transactions', String(id)));
-  if (!snapshot.exists()) {
-    throw new Error('La transacción no existe');
-  }
-
-  const data = snapshot.data() as Transaction;
-  if (data.userId !== user.uid) {
-    throw new Error('No tienes permiso para modificar esta transacción');
-  }
-
-  await updateDoc(doc(db, 'transactions', String(id)), {
-    ...transaction,
+  await updateDoc(ref, {
+    ...input,
+    ...(input.date ? { date: Timestamp.fromDate(input.date) } : {}),
     updatedAt: serverTimestamp(),
   });
-};
+}
 
-export const deleteTransaction = async (id: string | number): Promise<void> => {
-  const normalizedId = String(id).trim();
-  if (!normalizedId) {
-    throw new Error('ID de transacción inválido o vacío');
-  }
+export async function deleteTransaction(id: string | number): Promise<void> {
+  const user = requireUser();
+  const ref = doc(db, 'transactions', String(id).trim());
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists()) throw new Error('La transaccion no existe');
 
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('No hay un usuario autenticado');
-  }
-
-  const snapshot = await getDoc(doc(db, 'transactions', normalizedId));
-  if (!snapshot.exists()) {
-    throw new Error('La transacción no existe');
-  }
-
-  const data = snapshot.data() as Transaction;
+  const data = snapshot.data();
   if (data.userId !== user.uid) {
-    throw new Error('No tienes permiso para eliminar esta transacción');
+    throw new Error('No tienes permiso para eliminar esta transaccion');
   }
 
-  await updateDoc(doc(db, 'transactions', normalizedId), {
-    status: 'eliminado',
-    updatedAt: serverTimestamp(),
-  });
+  await deleteDoc(ref);
 
-  if (data.imagePath) {
+  if (typeof data.imagePath === 'string' && data.imagePath) {
     try {
       await deleteReceipt(data.imagePath);
     } catch (error) {
       console.warn('No se pudo eliminar el comprobante remoto:', error);
     }
   }
-};
+}

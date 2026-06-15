@@ -1,192 +1,186 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTransactions, addTransaction, deleteTransaction } from '../transaction.service';
-import { getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  deleteDoc,
+  getDoc,
+  getDocs,
+  orderBy,
+  setDoc,
+  Timestamp,
+} from 'firebase/firestore';
+import {
+  addTransaction,
+  deleteTransaction,
+  getTransactions,
+} from '../transaction.service';
 import { auth, getNextNumericId } from '../firebase';
+import { resolveReceiptUrl } from '../receipt.service';
 
-/*
-  Estos tests son unitarios y usan mocks de Firestore y del usuario autenticado.
-  No escriben en una base real; verifican que el servicio llame a las funciones
-  de Firebase con los datos correctos.
-*/
-// Objeto auxiliar para controlar el estado del usuario en los tests
 const mockUser = { uid: 'user_universidad_123' };
 
-// 1. Simulación de las funciones de Firestore
 vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
+  const actual = await vi.importActual<typeof import('firebase/firestore')>(
+    'firebase/firestore'
+  );
   return {
     ...actual,
     collection: vi.fn(),
+    deleteDoc: vi.fn(),
     doc: vi.fn(),
-    query: vi.fn(),
-    where: vi.fn(),
-    setDoc: vi.fn(),
-    getDocs: vi.fn(),
-    updateDoc: vi.fn(),
     getDoc: vi.fn(),
+    getDocs: vi.fn(),
+    orderBy: vi.fn(),
+    query: vi.fn(),
+    serverTimestamp: vi.fn(() => 'SERVER_TIMESTAMP'),
+    setDoc: vi.fn(),
+    where: vi.fn(),
   };
 });
 
-// 2. Simulación del archivo de configuración de Firebase local
 vi.mock('../firebase', () => ({
   db: {},
   auth: {
     get currentUser() {
       return mockUser.uid ? mockUser : null;
-    }
+    },
   },
   getNextNumericId: vi.fn().mockResolvedValue(1),
 }));
 
-describe('Pruebas unitarias - Transaction Service', () => {
-  
+vi.mock('../receipt.service', () => ({
+  deleteReceipt: vi.fn(),
+  resolveReceiptUrl: vi.fn(),
+}));
+
+const baseInput = {
+  type: 'expense' as const,
+  amount: 4500,
+  title: 'Fotocopias',
+  date: new Date(2026, 4, 27),
+  categoryId: 'category-study',
+  categoryName: 'Estudios',
+  note: '',
+  imagePath: null,
+};
+
+describe('Transaction Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUser.uid = 'user_universidad_123'; // Reseteo del usuario antes de cada test
+    mockUser.uid = 'user_universidad_123';
   });
 
-  // --- TEST 1: ENTRADA DE DINERO ---
-  it('debería registrar un INGRESO (entrada de dinero) correctamente', async () => {
-    const nuevoIngreso = {
-      type: 'income' as const,
-      amount: 25000,
-      title: 'Cobro de Beca / Sueldo',
-      userId: 'user_universidad_123',
-      date: '2026-05-27'
-    };
+  it('guarda la fecha como Timestamp y fuerza el UID autenticado', async () => {
+    vi.mocked(getNextNumericId).mockResolvedValueOnce(7);
 
-    vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(1);
+    await addTransaction(baseInput);
 
-    /* esto chequea que addTransaction envíe correctamente el ingreso a Firestore */
-    // Inspección de la carga del ingreso
-    console.log('\n[TEST INGRESO] Datos enviados a addTransaction:', nuevoIngreso);
-
-    await addTransaction(nuevoIngreso);
-
-    expect(setDoc).toHaveBeenCalledTimes(1);
     expect(setDoc).toHaveBeenCalledWith(
       undefined,
       expect.objectContaining({
-        id: 1,
-        ...nuevoIngreso,
-        status: 'agregado',
+        ...baseInput,
+        id: 7,
+        userId: mockUser.uid,
+        date: expect.any(Timestamp),
+        createdAt: 'SERVER_TIMESTAMP',
+        updatedAt: 'SERVER_TIMESTAMP',
       })
     );
   });
 
-  // --- TEST 2: SALIDA DE DINERO ---
-  it('debería registrar un GASTO (salida de dinero) correctamente', async () => {
-    const nuevoGasto = {
-      type: 'expense' as const,
-      amount: 4500,
-      title: 'Fotocopias e Impresiones',
-      userId: 'user_universidad_123',
-      date: '2026-05-27',
-      category: 'Estudios'
-    };
-
-    vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(1);
-
-    /* esto chequea que addTransaction envíe correctamente el gasto a Firestore */
-    // Inspección de la carga del gasto
-    console.log('\n[TEST GASTO] Datos enviados a addTransaction:', nuevoGasto);
-
-    await addTransaction(nuevoGasto);
-
-    expect(setDoc).toHaveBeenCalledTimes(1);
-    expect(setDoc).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({
-        id: 1,
-        ...nuevoGasto,
-        status: 'agregado',
-      })
-    );
-  });
-
-  // --- TEST 3: LISTAR LOS MOVIMIENTOS ---
-  it('debería listar los movimientos del usuario autenticado', async () => {
-    const mockSnapshot = {
+  it('consulta los movimientos ordenados por fecha descendente', async () => {
+    const firstDate = new Date(2026, 5, 10);
+    const secondDate = new Date(2026, 5, 9);
+    vi.mocked(getDocs).mockResolvedValueOnce({
       docs: [
-        { id: 't1', data: () => ({ type: 'income', amount: 10000, title: 'Transferencia', userId: 'user_universidad_123' }) },
-        { id: 't2', data: () => ({ type: 'expense', amount: 1500, title: 'Almuerzo', userId: 'user_universidad_123' }) }
-      ]
-    };
+        {
+          id: '2',
+          data: () => ({
+            ...baseInput,
+            id: 2,
+            userId: mockUser.uid,
+            date: Timestamp.fromDate(firstDate),
+          }),
+        },
+        {
+          id: '1',
+          data: () => ({
+            ...baseInput,
+            id: 1,
+            userId: mockUser.uid,
+            date: Timestamp.fromDate(secondDate),
+          }),
+        },
+      ],
+    } as never);
 
-    vi.mocked(getDocs).mockResolvedValueOnce(mockSnapshot as any);
+    const transactions = await getTransactions();
 
-    const historial = await getTransactions();
-
-    /* esto chequea que getTransactions mapea correctamente los documentos del snapshot */
-    // Muestra el arreglo devuelto por la función mapeada con formato legible
-    console.log('\n[TEST LISTAR] Historial devuelto por getTransactions():\n', JSON.stringify(historial, null, 2));
-
-    expect(historial).toHaveLength(2);
-    expect(historial[0].title).toBe('Transferencia');
-    expect(historial[1].type).toBe('expense');
+    expect(orderBy).toHaveBeenCalledWith('date', 'desc');
+    expect(transactions.map((item) => item.id)).toEqual([2, 1]);
+    expect(transactions[0].date).toEqual(firstDate);
   });
 
-  // --- TEST 4: BORRADO LÓGICO ---
-  it('debería marcar una transacción como eliminada en lugar de borrarla físicamente', async () => {
+  it('mantiene la lista aunque falle una URL firmada', async () => {
+    vi.mocked(resolveReceiptUrl).mockRejectedValueOnce(
+      new Error('Supabase no disponible')
+    );
+    vi.mocked(getDocs).mockResolvedValueOnce({
+      docs: [
+        {
+          id: '1',
+          data: () => ({
+            ...baseInput,
+            id: 1,
+            userId: mockUser.uid,
+            imagePath: 'user/receipt.jpg',
+            date: Timestamp.fromDate(baseInput.date),
+          }),
+        },
+      ],
+    } as never);
+
+    const transactions = await getTransactions();
+
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].imagePath).toBe('user/receipt.jpg');
+    expect(transactions[0].imageUrl).toBeUndefined();
+  });
+
+  it('borra físicamente una transacción propia', async () => {
     vi.mocked(getDoc).mockResolvedValueOnce({
       exists: () => true,
-      data: () => ({ userId: 'user_universidad_123' }),
-    } as any);
-    vi.mocked(updateDoc).mockResolvedValueOnce(undefined as any);
+      data: () => ({ userId: mockUser.uid }),
+    } as never);
 
-    await deleteTransaction('tx_123');
+    await deleteTransaction('123');
 
-    expect(getDoc).toHaveBeenCalledTimes(1);
-    expect(updateDoc).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({ status: 'eliminado', updatedAt: expect.anything() })
-    );
+    expect(deleteDoc).toHaveBeenCalledOnce();
   });
 
-  // --- TEST 5: TRANSACCIÓN COMPARTIDA ---
-  it('debería conservar los metadatos del gasto compartido al guardar', async () => {
-    const sharedTransaction = {
-      type: 'shared' as const,
-      amount: 30000,
-      title: 'Cena compartida',
-      userId: 'friend_uid_456',
-      date: '2026-05-28',
+  it('rechaza operaciones cuando no hay sesión', async () => {
+    mockUser.uid = '';
+
+    await expect(getTransactions()).rejects.toThrow(
+      'No hay un usuario autenticado'
+    );
+    expect(getDocs).not.toHaveBeenCalled();
+  });
+
+  it('ignora cualquier userId externo porque no forma parte del input', async () => {
+    await addTransaction({
+      ...baseInput,
       detalleCompartido: {
-        total: 60000,
-        pagadoPorMi: 30000,
-        pagadoPorAmigo: 30000,
-        amigo: { uid: 'friend_uid_456', nombre: 'Pedro' },
+        total: 9000,
+        pagadoPorMi: 4500,
+        pagadoPorAmigo: 4500,
       },
-    };
-
-    vi.mocked(setDoc).mockResolvedValueOnce(undefined as any);
-    vi.mocked(getNextNumericId).mockResolvedValueOnce(2);
-
-    await addTransaction(sharedTransaction);
+    });
 
     expect(setDoc).toHaveBeenCalledWith(
       undefined,
       expect.objectContaining({
-        id: 2,
-        ...sharedTransaction,
-        status: 'agregado',
+        userId: mockUser.uid,
+        detalleCompartido: expect.objectContaining({ total: 9000 }),
       })
     );
-  });
-
-  // --- TEST 6: COMPORTAMIENTO SI NO ESTÁ LOGUEADO ---
-  it('debería retornar un array vacío si el usuario no está autenticado', async () => {
-    mockUser.uid = ''; 
-
-    const historial = await getTransactions();
-    
-    /* esto chequea que getTransactions devuelva vacío cuando no hay usuario autenticado */
-    // Verificación del flujo de seguridad
-    console.log('\n[TEST SEGURIDAD] Historial cuando currentUser es null:', historial);
-
-    expect(historial).toEqual([]);
-    expect(getDocs).not.toHaveBeenCalled();
   });
 });

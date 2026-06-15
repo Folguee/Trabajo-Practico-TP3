@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, getNextNumericId } from './firebase';
+import { ensureDefaultCategories } from './category.service';
 
 // --- Login con email y contraseña ---
 export async function login(email: string, password: string): Promise<User> {
@@ -41,6 +42,7 @@ export async function register(
     email,
     createdAt: serverTimestamp(),
   });
+  await ensureDefaultCategories(result.user.uid);
 
   return result.user;
 }
