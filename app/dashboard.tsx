@@ -19,7 +19,6 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ChevronRight,
-  Sparkles,
   Calendar,
   FileText,
   Tag,
@@ -200,9 +199,6 @@ export default function Dashboard() {
               <View>
                 <Text className="text-white text-3xl font-bold mb-1 tracking-tight">Control de Gastos</Text>
                 <Text className="text-slate-400 text-sm">Gestiona tus finanzas personales</Text>
-              </View>
-              <View className="bg-slate-800/80 p-2.5 rounded-full border border-slate-700/50 hidden md:flex">
-                <Sparkles size={20} color="#818cf8" />
               </View>
             </View>
           </View>
