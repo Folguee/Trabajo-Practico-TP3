@@ -43,10 +43,11 @@ import {
 import { getCategories } from '../services/category.service';
 import { getPublicUsers } from '../services/user-directory.service';
 import { auth } from '../services/firebase';
-import { calculateSharedParticipants } from '../utils/shared-expense';
+import { validateAndCalculateSharedParticipants } from '../utils/shared-expense';
 import type {
   Category,
   PublicUser,
+  SharedParticipant,
   SharedSplitMode,
   TransactionType,
 } from '../types';
@@ -327,25 +328,84 @@ export default function TransactionFormSheet({
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !amount.trim() || !categoryId || !date.trim()) {
-      Alert.alert('Datos incompletos', 'Completa título, monto, tipo, categoría y fecha.');
+    const missingFields = [
+      !title.trim() ? 'título' : '',
+      !amount.trim() ? 'monto' : '',
+      !categoryId ? 'categoría' : '',
+      !date.trim() ? 'fecha' : '',
+    ].filter(Boolean);
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        'Datos incompletos',
+        `Completa los siguientes campos: ${missingFields.join(', ')}.`
+      );
       return;
     }
 
     const amountValidation = validateMoneyInput(amount);
     if (!amountValidation.valid) {
-      setAmountError(
+      const errorMessage =
         'error' in amountValidation
           ? amountValidation.error
-          : 'Monto invalido'
-      );
+          : 'Monto inválido';
+      setAmountError(errorMessage);
+      Alert.alert('Monto inválido', errorMessage);
       return;
     }
 
     const parsedDate = parseDateInput(date.trim());
     if (!parsedDate) {
+      setDateError('Fecha inválida');
+      triggerShake();
       Alert.alert('Fecha inválida', 'Ingresa una fecha válida en formato DD/MM/AAAA.');
       return;
+    }
+
+    const selectedCategory = categories.find(
+      (category) => category.id === categoryId
+    );
+    if (!selectedCategory) {
+      Alert.alert(
+        'Categoría inválida',
+        'Selecciona nuevamente una categoría disponible.'
+      );
+      return;
+    }
+
+    let sharedParticipants: SharedParticipant[] | undefined;
+    if (type === 'shared') {
+      if (!auth.currentUser) {
+        Alert.alert('Sesión inválida', 'Vuelve a iniciar sesión para guardar el gasto.');
+        return;
+      }
+      if (
+        !selectedUsers.some((participant) => participant.uid === auth.currentUser?.uid)
+      ) {
+        Alert.alert(
+          'Revisa el gasto compartido',
+          'El creador debe estar incluido entre los participantes.'
+        );
+        return;
+      }
+
+      try {
+        sharedParticipants = validateAndCalculateSharedParticipants(
+          amountValidation.value,
+          selectedUsers,
+          payerUid,
+          splitMode,
+          splitValues
+        );
+      } catch (error) {
+        Alert.alert(
+          'Revisa el gasto compartido',
+          error instanceof Error
+            ? error.message
+            : 'Completa los datos del reparto.'
+        );
+        return;
+      }
     }
 
     let uploadedImagePath: string | null = null;
@@ -359,29 +419,6 @@ export default function TransactionFormSheet({
       }
 
       const nextImagePath = imageChanged ? uploadedImagePath : originalImagePath;
-      const selectedCategory = categories.find(
-        (category) => category.id === categoryId
-      );
-      if (!selectedCategory) {
-        throw new Error('La categoria seleccionada ya no existe');
-      }
-
-      const sharedParticipants =
-        type === 'shared'
-          ? calculateSharedParticipants(
-              amountValidation.value,
-              selectedUsers,
-              splitMode,
-              selectedUsers.map((user) => ({
-                uid: user.uid,
-                value: Number(splitValues[user.uid] || 0),
-              }))
-            )
-          : undefined;
-
-      if (type === 'shared' && !selectedUsers.some((user) => user.uid === payerUid)) {
-        throw new Error('Selecciona quien pago el gasto');
-      }
 
       const payload: TransactionInput = {
         title: title.trim(),
