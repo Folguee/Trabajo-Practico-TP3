@@ -2,8 +2,6 @@ import {
   collection,
   doc,
   getDocs,
-  orderBy,
-  query,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
@@ -31,11 +29,26 @@ export async function getPublicUsers(): Promise<PublicUser[]> {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('No hay un usuario autenticado');
 
-  const snapshot = await getDocs(
-    query(collection(db, 'publicUsers'), orderBy('nombreLower', 'asc'))
-  );
+  const snapshot = await getDocs(collection(db, 'publicUsers'));
 
   return snapshot.docs
-    .map((item) => item.data() as PublicUser)
-    .filter((user) => user.uid !== currentUser.uid);
+    .map((item) => {
+      const data = item.data();
+      const nombre =
+        typeof data.nombre === 'string' && data.nombre.trim()
+          ? data.nombre.trim()
+          : 'Usuario';
+      return {
+        uid: typeof data.uid === 'string' ? data.uid : item.id,
+        nombre,
+        nombreLower:
+          typeof data.nombreLower === 'string'
+            ? data.nombreLower
+            : nombre.toLocaleLowerCase('es'),
+      };
+    })
+    .filter((user) => user.uid !== currentUser.uid)
+    .sort((left, right) =>
+      left.nombre.localeCompare(right.nombre, 'es', { sensitivity: 'base' })
+    );
 }
