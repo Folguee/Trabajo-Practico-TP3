@@ -2,3 +2,7 @@ project_id = "Trabajo-Practico-TP3"
 
 [functions.receipt-storage]
 verify_jwt = false
+
+[functions.receipt-ocr]
+verify_jwt = false
+

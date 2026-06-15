@@ -19,6 +19,7 @@ import {
   DollarSign,
   FileText,
   Images,
+  Sparkles,
   Tag,
   Trash2,
   UserPlus,
@@ -36,7 +37,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMoneyInput, validateMoneyInput } from '../utils/money';
 import { formatDateInput, formatDisplayDate, parseDateInput } from '../utils/date';
 import { deleteReceipt, uploadReceipt } from '../services/receipt.service';
+import { analyzeReceipt } from '../services/receipt-ocr.service';
 import {
+  pickReceiptDocument,
   pickReceiptFromLibrary,
   takeReceiptPhoto,
 } from '../services/receipt-picker.service';
@@ -96,6 +99,11 @@ export default function TransactionFormSheet({
   const [payerUid, setPayerUid] = useState('');
   const [splitMode, setSplitMode] = useState<SharedSplitMode>('equal');
   const [splitValues, setSplitValues] = useState<Record<string, string>>({});
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
+  const [ocrCompletedFields, setOcrCompletedFields] = useState<string[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const loadPublicUsers = useCallback(async () => {
@@ -163,6 +171,9 @@ export default function TransactionFormSheet({
         setSplitMode('equal');
         setSplitValues({});
         setUserSearch('');
+        setOcrError(null);
+        setOcrWarnings([]);
+        setOcrCompletedFields([]);
         return;
       }
 
@@ -228,6 +239,9 @@ export default function TransactionFormSheet({
           setSplitMode('equal');
           setSplitValues({});
         }
+        setOcrError(null);
+        setOcrWarnings([]);
+        setOcrCompletedFields([]);
       } else {
         Alert.alert('No encontrado', 'El movimiento ya no existe.');
         onClose();
@@ -260,6 +274,9 @@ export default function TransactionFormSheet({
     setSelectedImageUri(picked.uri);
     setSelectedImageMimeType(picked.mimeType || null);
     setImageChanged(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
   };
 
   const handlePickPhoto = async () => {
@@ -284,6 +301,118 @@ export default function TransactionFormSheet({
     setSelectedImageUri('');
     setSelectedImageMimeType(null);
     setImageChanged(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      const picked = await pickReceiptDocument();
+      if (picked) setPickedPhoto(picked);
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'No se pudo abrir el selector de documentos.');
+    }
+  };
+
+  const handleDragOver = (e: any) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: any) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.nativeEvent?.dataTransfer?.files || e.dataTransfer?.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      if (file.size > 5 * 1024 * 1024) {
+        Alert.alert('Archivo demasiado grande', 'El archivo debe pesar menos de 5 MB.');
+        return;
+      }
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        Alert.alert('Formato no soportado', 'Solo se aceptan imágenes JPEG, PNG, WebP y archivos PDF.');
+        return;
+      }
+
+      const uri = URL.createObjectURL(file);
+      setPickedPhoto({
+        uri,
+        mimeType: file.type,
+      });
+
+      Alert.alert(
+        'Archivo adjunto',
+        `Se adjuntó "${file.name}" correctamente.`
+      );
+    }
+  };
+
+  const handleAnalyzeReceipt = async () => {
+    if (!selectedImageUri) return;
+    setIsOcrLoading(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
+    try {
+      const result = await analyzeReceipt({
+        uri: selectedImageUri,
+        mimeType: selectedImageMimeType,
+      });
+
+      const completed: string[] = [];
+
+      if (!title.trim() && result.title.value) {
+        let cleanedTitle = result.title.value;
+        // Clean trailing noise words like "FACTURA", "TICKET"
+        cleanedTitle = cleanedTitle.replace(/\s+(?:factura|ticket|comprobante|original|duplicado)\b.*$/i, '').trim();
+        setTitle(cleanedTitle);
+        completed.push('Título');
+      }
+
+      if (!amount.trim() && result.amount.value !== null) {
+        setAmount(formatMoneyInput(result.amount.value));
+        completed.push('Monto');
+      }
+
+      if (result.date.value) {
+        setDate(result.date.value);
+        completed.push('Fecha');
+      }
+
+      setOcrCompletedFields(completed);
+      if (result.warnings && result.warnings.length > 0) {
+        const filteredWarnings = result.warnings.filter(w =>
+          !w.toLowerCase().includes('categoría')
+        );
+        setOcrWarnings(filteredWarnings);
+      }
+
+      if (completed.length === 0) {
+        Alert.alert(
+          'Análisis finalizado',
+          'No se autocompletaron nuevos campos vacíos. Es posible que los campos ya contengan datos o que la confianza del análisis fuera baja.'
+        );
+      } else {
+        Alert.alert(
+          'Campos sugeridos',
+          `Se autocompletaron los campos vacíos: ${completed.join(', ')}.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Error al analizar comprobante:', err);
+      setOcrError(err.message || 'Error al analizar el comprobante.');
+    } finally {
+      setIsOcrLoading(false);
+    }
   };
 
   const triggerShake = () => {
@@ -544,6 +673,138 @@ export default function TransactionFormSheet({
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+                {/* Comprobante Adjunto (arriba para auto-completar) */}
+                <View
+                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-5 ${
+                    isDragging
+                      ? 'border-dashed border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/10'
+                      : 'border-slate-200/80 dark:border-slate-800'
+                  }`}
+                  {...({
+                    onDragOver: handleDragOver,
+                    onDragLeave: handleDragLeave,
+                    onDrop: handleDrop,
+                  } as any)}
+                >
+                  <View className="flex-row justify-between items-center mb-3">
+                    <View className="flex-row items-center">
+                      <Camera size={18} color="#64748b" />
+                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Comprobante Adjunto</Text>
+                    </View>
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5"
+                        onPress={handleTakePhoto}
+                        accessibilityLabel="Tomar foto"
+                      >
+                        <Camera size={17} color="#475569" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickPhoto}
+                        accessibilityLabel="Elegir de la galeria"
+                      >
+                        <Images size={17} color="white" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
+                        onPress={handlePickDocument}
+                        accessibilityLabel="Elegir de documentos"
+                      >
+                        <FileText size={17} color="white" />
+                      </TouchableOpacity>
+                      {selectedImageUri ? (
+                        <TouchableOpacity
+                          className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
+                          onPress={handleRemovePhoto}
+                          accessibilityLabel="Quitar archivo"
+                        >
+                          <Trash2 size={17} color="#f43f5e" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                  {selectedImageUri ? (
+                    <View className="gap-3">
+                      {selectedImageMimeType === 'application/pdf' || selectedImageUri.toLowerCase().split('?')[0].endsWith('.pdf') ? (
+                        <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-40 items-center justify-center gap-2">
+                          <FileText size={40} color="#6366f1" />
+                          <Text className="text-slate-700 dark:text-slate-300 font-bold text-sm">
+                            Documento PDF adjunto
+                          </Text>
+                          <Text className="text-slate-400 dark:text-slate-500 text-xs text-center px-4" numberOfLines={1}>
+                            {selectedImageUri.split('/').pop() || 'comprobante.pdf'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      )}
+                      
+                      {(type === 'expense' || type === 'shared') && (
+                        <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-105 dark:border-slate-750">
+                          {isOcrLoading ? (
+                            <View className="flex-row items-center justify-center py-2 gap-2">
+                              <ActivityIndicator size="small" color="#6366f1" />
+                              <Text className="text-slate-650 dark:text-slate-300 font-semibold text-xs">
+                                Analizando comprobante...
+                              </Text>
+                            </View>
+                          ) : ocrError ? (
+                            <View className="gap-2">
+                              <Text className="text-rose-500 text-xs font-semibold">{ocrError}</Text>
+                              <TouchableOpacity
+                                className="bg-indigo-650 active:bg-indigo-700 rounded-xl py-2.5 items-center"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Text className="text-white text-xs font-bold">Reintentar análisis</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View className="flex-row items-center justify-between">
+                              <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                                ¿Autocompletar campos usando IA?
+                              </Text>
+                              <TouchableOpacity
+                                className="bg-[#6366f1] active:opacity-90 rounded-xl px-4 py-2 flex-row items-center gap-1.5 shadow-sm"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Sparkles size={13} color="white" />
+                                <Text className="text-white text-xs font-bold">Analizar</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* Suggested Fields */}
+                          {ocrCompletedFields.length > 0 && (
+                            <View className="mt-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 flex-row items-center gap-2.5">
+                              <Check size={15} color="#10b981" />
+                              <Text className="text-emerald-800 dark:text-emerald-300 text-xs font-medium flex-1">
+                                Campos completados: <Text className="font-bold">{ocrCompletedFields.join(', ')}</Text>
+                              </Text>
+                            </View>
+                          )}
+
+                          {/* Warnings list */}
+                          {ocrWarnings.length > 0 && (
+                            <View className="mt-3 bg-amber-50 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3 gap-1">
+                              {ocrWarnings.map((warning, idx) => (
+                                <Text key={idx} className="text-amber-800 dark:text-amber-400 text-[11px] leading-4">
+                                  • {warning}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
+                      <Camera size={24} color="#94a3b8" />
+                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin archivo adjunto</Text>
+                    </View>
+                  )}
+                </View>
+
                 {/* Tarjeta de Monto */}
                 <View className={`bg-slate-50 dark:bg-slate-800 rounded-2xl p-5 items-center border mb-5 ${
                   amountError ? 'border-rose-400 dark:border-rose-500' : 'border-slate-100 dark:border-slate-800'
@@ -914,49 +1175,6 @@ export default function TransactionFormSheet({
                     value={note}
                     onChangeText={setNote}
                   />
-                </View>
-
-                {/* Input: Foto */}
-                <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm mb-4">
-                  <View className="flex-row justify-between items-center mb-3">
-                    <View className="flex-row items-center">
-                      <Camera size={18} color="#64748b" />
-                      <Text className="text-slate-600 dark:text-slate-350 font-semibold text-sm ml-2">Foto Adjunta</Text>
-                    </View>
-                    <View className="flex-row gap-2">
-                      <TouchableOpacity
-                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-2.5"
-                        onPress={handleTakePhoto}
-                        accessibilityLabel="Tomar foto"
-                      >
-                        <Camera size={17} color="#475569" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="bg-[#0f172a] dark:bg-indigo-600 rounded-xl p-2.5"
-                        onPress={handlePickPhoto}
-                        accessibilityLabel="Elegir de la galeria"
-                      >
-                        <Images size={17} color="white" />
-                      </TouchableOpacity>
-                      {selectedImageUri ? (
-                        <TouchableOpacity
-                          className="bg-rose-100 dark:bg-rose-950/40 rounded-xl p-2.5"
-                          onPress={handleRemovePhoto}
-                          accessibilityLabel="Quitar foto"
-                        >
-                          <Trash2 size={17} color="#f43f5e" />
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                  </View>
-                  {selectedImageUri ? (
-                    <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
-                  ) : (
-                    <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
-                      <Camera size={24} color="#94a3b8" />
-                      <Text className="text-slate-400 dark:text-slate-500 mt-1.5 text-xs">Sin imagen adjunta</Text>
-                    </View>
-                  )}
                 </View>
               </ScrollView>
 
