@@ -88,9 +88,38 @@ Deno.serve(async (req) => {
 
     if (contentType === "application/pdf") {
       try {
-        const { getDocumentProxy, extractText } = await import("npm:unpdf");
+        const { getDocumentProxy } = await import("npm:unpdf");
         const pdf = await getDocumentProxy(new Uint8Array(file));
-        const { text } = await extractText(pdf, { mergePages: true });
+        
+        let text = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          let pageText = "";
+          const items = textContent.items.filter((item: any) => typeof item.str === 'string');
+          
+          // Sort items: top-to-bottom, then left-to-right
+          items.sort((a: any, b: any) => {
+            const yDiff = b.transform[5] - a.transform[5];
+            if (Math.abs(yDiff) > 3) {
+              return yDiff;
+            }
+            return a.transform[4] - b.transform[4];
+          });
+
+          let lastY = -1;
+          for (const item of items) {
+            const y = item.transform[5];
+            if (lastY !== -1 && Math.abs(y - lastY) > 5) {
+              pageText += "\n";
+            } else if (pageText.length > 0 && !pageText.endsWith("\n") && !pageText.endsWith(" ")) {
+              pageText += " ";
+            }
+            pageText += item.str;
+            lastY = y;
+          }
+          text += pageText + "\n";
+        }
 
         if (!text || !text.trim()) {
           return json({
@@ -174,7 +203,17 @@ Deno.serve(async (req) => {
       const ocrData = await response.json();
 
       // 6. Extract raw text / confidence fields from NVIDIA OCR response
-      if (Array.isArray(ocrData)) {
+      const firstItem = Array.isArray(ocrData) ? ocrData[0] : ocrData;
+      const data0 = firstItem?.data?.[0];
+      const detections = data0?.text_detections || data0?.detections;
+      if (data0 && Array.isArray(detections)) {
+        ocrLines = detections.map((d: any) => ({
+          text: d.text_prediction?.text || d.text || d.content || "",
+          confidence: typeof d.text_prediction?.confidence === "number"
+            ? d.text_prediction.confidence
+            : (typeof d.confidence === "number" ? d.confidence : 1.0)
+        }));
+      } else if (Array.isArray(ocrData)) {
         ocrLines = ocrData.map((d: any) => ({
           text: d.text || d.recognized_text || d.content || "",
           confidence: typeof d.confidence === "number" ? d.confidence : (typeof d.confidence_score === "number" ? d.confidence_score : 1.0)

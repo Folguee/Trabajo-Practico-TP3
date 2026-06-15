@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts"
+    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts services/tests/receipt-assets.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -51,6 +51,7 @@
     "@types/node": "^25.6.0",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2",
+    "unpdf": "^1.6.2",
     "vitest": "^4.1.8"
   },
   "private": true

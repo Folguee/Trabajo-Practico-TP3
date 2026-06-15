@@ -69,7 +69,7 @@ export function parseOcrLines(lines: OcrLine[]): ReceiptOcrResult {
   // 1. Merchant Title Extraction
   const cuitRegex = /cuit|c\.u\.i\.t\.|2[0370]-\d{8}-\d|\b\d{11}\b/i;
   const addressRegex = /av\.|calle|ruta|nro|piso|caba|provincia|buenos aires|tel|telefono|cel|@|\.com|\.ar/i;
-  const headerNoiseRegex = /factura|ticket|comprobante|duplicado|original|monotributo|resp\.|inscripto|consumidor|final|a\s+pagar|efectivo|debito|tarjeta/i;
+  const headerNoiseRegex = /^(?:factura|ticket|comprobante|duplicado|original|monotributo|resp\.|inscripto|consumidor|final|a\s+pagar|efectivo|debito|tarjeta)\b/i;
   const datePatternRegex = /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/;
   const numberNoiseRegex = /^\s*[\d.,$-]+\s*$/;
 

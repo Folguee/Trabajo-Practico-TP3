@@ -211,6 +211,64 @@ describe('Receipt OCR Service & Parser', () => {
       expect(result.warnings).toContain('No se pudo determinar la fecha del comprobante.');
     });
 
+    it('simula la lectura de un PDF digital de Carrefour y extrae campos correctos', () => {
+      const pdfExtractedText = `
+        INC S.A.
+        CARREFOUR EXPRESS
+        Sucursal 123 - Av. Corrientes 2500
+        C.U.I.T.: 30-68731043-4
+        IVA RESPONSABLE INSCRIPTO
+        FECHA: 14/06/2026  HORA: 12:45:00
+        Nro. Factura: 0005-00129481
+        -------------------------------
+        PROD1          $450,00
+        PROD2         $1.200,00
+        -------------------------------
+        SUBTOTAL      $1.650,00
+        TOTAL:        $1.650,00
+        EFECTIVO      $2.000,00
+        VUELTO         $350,00
+      `;
+
+      const ocrLines = pdfExtractedText
+        .split('\n')
+        .map(line => ({ text: line.trim(), confidence: 1.0 }))
+        .filter(line => line.text.length > 0);
+
+      const result = parseOcrLines(ocrLines);
+
+      expect(result.title.value).toBe('INC S.A.');
+      expect(result.date.value).toBe('14/06/2026');
+      expect(result.amount.value).toBe(1650);
+      expect(result.categoryHint.value).toBe('Alimentacion');
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it('simula la lectura de un PDF digital de Edenor y extrae campos correctos', () => {
+      const pdfExtractedText = `
+        EDENOR S.A.
+        Factura de Servicio Electrico
+        Cliente: Juan Perez
+        Vencimiento: 25/06/2026
+        Fecha de Emision: 05/06/2026
+        Detalle de consumo bimestral
+        TOTAL A PAGAR: $18.450,20
+        Luz y Fuerza para el Hogar
+      `;
+
+      const ocrLines = pdfExtractedText
+        .split('\n')
+        .map(line => ({ text: line.trim(), confidence: 1.0 }))
+        .filter(line => line.text.length > 0);
+
+      const result = parseOcrLines(ocrLines);
+
+      expect(result.title.value).toBe('EDENOR S.A.');
+      expect(result.date.value).toBe('05/06/2026');
+      expect(result.amount.value).toBe(18450.2);
+      expect(result.categoryHint.value).toBe('Servicios');
+    });
+
     it('devuelve warnings para campos de baja confianza o no encontrados', () => {
       const ocrLines = [
         { text: 'FACTURA TICKET NOISE', confidence: 0.5 },

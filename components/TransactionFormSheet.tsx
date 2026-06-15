@@ -256,34 +256,25 @@ export default function TransactionFormSheet({
 
       const completed: string[] = [];
 
-      if (!title.trim() && result.title.value && result.title.confidence >= 0.75) {
-        setTitle(result.title.value);
+      if (!title.trim() && result.title.value) {
+        let cleanedTitle = result.title.value;
+        // Clean trailing noise words like "FACTURA", "TICKET"
+        cleanedTitle = cleanedTitle.replace(/\s+(?:factura|ticket|comprobante|original|duplicado)\b.*$/i, '').trim();
+        setTitle(cleanedTitle);
         completed.push('Título');
       }
 
-      if (!amount.trim() && result.amount.value !== null && result.amount.confidence >= 0.75) {
+      if (!amount.trim() && result.amount.value !== null) {
         setAmount(formatMoneyInput(result.amount.value));
         completed.push('Monto');
       }
 
-      if (!date.trim() && result.date.value && result.date.confidence >= 0.75) {
-        setDate(result.date.value);
-        completed.push('Fecha');
-      }
-
-      if (!categoryId && result.categoryHint.value && result.categoryHint.confidence >= 0.75) {
-        const matchedCategory = categories.find(
-          (cat) => cat.name.toLowerCase() === result.categoryHint.value?.toLowerCase()
-        );
-        if (matchedCategory) {
-          setCategoryId(matchedCategory.id);
-          completed.push('Categoría');
-        }
-      }
-
       setOcrCompletedFields(completed);
       if (result.warnings && result.warnings.length > 0) {
-        setOcrWarnings(result.warnings);
+        const filteredWarnings = result.warnings.filter(w =>
+          w.toLowerCase().includes('comercio') || w.toLowerCase().includes('monto')
+        );
+        setOcrWarnings(filteredWarnings);
       }
 
       if (completed.length === 0) {
