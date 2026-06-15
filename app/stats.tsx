@@ -23,7 +23,7 @@ import {
 import { PieChart as ChartKitPieChart } from 'react-native-chart-kit';
 import SidebarLayout from '../components/SidebarLayout';
 import { getTransactions, Transaction } from '../services/transaction.service';
-import { getCategoryConfig, transactionCategories } from '../constants/transactions';
+import { getCategoryConfig } from '../constants/transactions';
 import { useBudgetStore } from '../store/budgetStore';
 import { calculateStats } from '../utils/stats';
 import {
@@ -31,9 +31,13 @@ import {
   formatMoneyInput,
   validateMoneyInput,
 } from '../utils/money';
+import { formatDisplayDate } from '../utils/date';
+import { getCategories } from '../services/category.service';
+import type { Category } from '../types';
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
@@ -42,10 +46,22 @@ export default function StatsScreen() {
   const { budgets, setBudget } = useBudgetStore();
 
   const loadTransactions = useCallback(async () => {
-    const result = await getTransactions();
-    setTransactions(result);
-    setIsLoading(false);
-    setIsRefreshing(false);
+    try {
+      const [loadedTransactions, loadedCategories] = await Promise.all([
+        getTransactions(),
+        getCategories(),
+      ]);
+      setTransactions(loadedTransactions);
+      setCategories(loadedCategories);
+    } catch (error) {
+      Alert.alert(
+        'Error de conexion',
+        error instanceof Error ? error.message : 'No se pudieron cargar las estadisticas.'
+      );
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -59,7 +75,7 @@ export default function StatsScreen() {
 
     return {
       ...computed,
-      recentTransactions: transactions.slice(0, 5),
+      recentTransactions: computed.monthlyTransactions.slice(0, 5),
     };
   }, [transactions]);
 
@@ -76,7 +92,9 @@ export default function StatsScreen() {
   const handleSetBudget = (category: string) => {
     const validation = validateMoneyInput(budgetInput);
     if (!validation.valid) {
-      setBudgetError(validation.error);
+      setBudgetError(
+        'error' in validation ? validation.error : 'Monto invalido'
+      );
       return;
     }
     setBudget(category, validation.value);
@@ -115,7 +133,7 @@ export default function StatsScreen() {
           {/* Tarjeta de Balance principal (Estilo unificado con el Dashboard, flotando sobre el banner) */}
           <View className="px-6 -mt-16 mb-6">
             <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[120px] justify-center">
-              <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Balance Total</Text>
+              <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Balance del mes</Text>
               {isLoading ? (
                 <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
               ) : (
@@ -133,7 +151,7 @@ export default function StatsScreen() {
                 <View className="bg-emerald-100 w-12 h-12 rounded-full items-center justify-center mb-3">
                   <TrendingUp size={24} color="#10b981" />
                 </View>
-                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Ingresos</Text>
+                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Ingresos del mes</Text>
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
                 ) : (
@@ -146,7 +164,7 @@ export default function StatsScreen() {
                 <View className="bg-rose-100 w-12 h-12 rounded-full items-center justify-center mb-3">
                   <TrendingDown size={24} color="#f43f5e" />
                 </View>
-                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Gastos</Text>
+                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Gastos del mes</Text>
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
                 ) : (
@@ -155,6 +173,19 @@ export default function StatsScreen() {
                   </Text>
                 )}
               </View>
+            </View>
+
+            <View className="flex-row flex-wrap gap-3 mb-6">
+              {[
+                ['Movimientos', String(stats.transactionCount)],
+                ['Mayor gasto', formatCurrency(stats.largestExpense)],
+                ['Promedio diario', formatCurrency(stats.averageDailyExpense)],
+              ].map(([label, value]) => (
+                <View key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 min-w-[30%] flex-1 border border-slate-100 dark:border-gray-700">
+                  <Text className="text-slate-400 text-xs mb-1">{label}</Text>
+                  <Text className="text-slate-800 dark:text-gray-100 font-bold">{value}</Text>
+                </View>
+              ))}
             </View>
 
             {isLoading ? (
@@ -213,14 +244,15 @@ export default function StatsScreen() {
                     <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
                   </View>
                 ))
-              ) : transactionCategories.filter((c) => c.name !== 'Ingresos').length === 0 ? (
+              ) : categories.filter((c) => c.type === 'expense').length === 0 ? (
                 <View className="items-center py-8">
                   <Wallet size={32} color="#94a3b8" />
                   <Text className="text-slate-400 dark:text-gray-500 mt-2">No hay categorias disponibles.</Text>
                 </View>
               ) : (
-                transactionCategories.filter((c) => c.name !== 'Ingresos').map(({ name: catName }) => {
-                  const category = getCategoryConfig(catName);
+                categories.filter((c) => c.type === 'expense').map((categoryData) => {
+                  const catName = categoryData.name;
+                  const category = getCategoryConfig(categoryData);
                   const Icon = category.icon;
                   const spent = stats.expensesByCategory.find(([n]) => n === catName)?.[1] || 0;
                   const budgetLimit = budgets[catName] || 0;
@@ -328,7 +360,10 @@ export default function StatsScreen() {
                 </View>
               ) : (
                 stats.expensesByCategory.map(([categoryName, amount]) => {
-                  const category = getCategoryConfig(categoryName);
+                  const category = getCategoryConfig(
+                    categories.find((entry) => entry.name === categoryName) ||
+                      categoryName
+                  );
                   const Icon = category.icon;
                   const widthPercent = `${Math.max((amount / maxCategoryExpense) * 100, 8)}%` as `${number}%`;
 
@@ -383,7 +418,7 @@ export default function StatsScreen() {
                   >
                     <View>
                       <Text className="text-slate-800 dark:text-gray-100 font-semibold">{transaction.title}</Text>
-                      <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{transaction.date || 'Sin fecha'}</Text>
+                      <Text className="text-slate-400 dark:text-gray-500 text-xs mt-1">{formatDisplayDate(transaction.date)}</Text>
                     </View>
                     <Text className={`${transaction.type === 'expense' || transaction.type === 'shared' ? 'text-rose-500' : 'text-emerald-500'} font-bold`}>
                       {formatCurrency(transaction.amount, {
