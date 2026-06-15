@@ -1,16 +1,15 @@
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { logout } from '../services/auth.service';
-import { Home, List, BarChart3, User, LogOut, Moon, Sun } from 'lucide-react-native';
+import { Home, List, BarChart3, User, LogOut, Moon, Sun, Download } from 'lucide-react-native';
 import { useThemeStore } from '../store/themeStore';
-import BottomNav from './BottomNav';
-
-type TabKey = 'dashboard' | 'transacciones' | 'stats' | 'perfil';
+import BottomNav, { TabKey } from './BottomNav';
 
 const sidebarTabs: Array<{ key: TabKey; label: string; icon: typeof Home; route: string }> = [
   { key: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
   { key: 'transacciones', label: 'Transacciones', icon: List, route: '/transacciones' },
   { key: 'stats', label: 'Stats', icon: BarChart3, route: '/stats' },
+  { key: 'exportar', label: 'Exportar', icon: Download, route: '/exportar' },
   { key: 'perfil', label: 'Perfil', icon: User, route: '/perfil' },
 ];
 
@@ -96,4 +95,3 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
     </View>
   );
 }
-
