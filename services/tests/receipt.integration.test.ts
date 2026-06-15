@@ -72,17 +72,18 @@ liveDescribe('Receipt Storage - integración real', () => {
     const unique = `${Date.now()}-${crypto.randomUUID()}`;
     const email = `receipt-test-${unique}@example.com`;
     const password = `Test-${crypto.randomUUID()}-A1`;
-    session = await firebaseRequest('signUp', {
+    const createdSession = await firebaseRequest('signUp', {
       email,
       password,
       returnSecureToken: true,
-    });
+    }) as FirebaseSession;
+    session = createdSession;
 
     const imageBytes = new Uint8Array([
       0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
       0x49, 0x46, 0x00, 0x01, 0xff, 0xd9,
     ]);
-    const uploadResponse = await receiptRequest('', session.idToken, {
+    const uploadResponse = await receiptRequest('', createdSession.idToken, {
       method: 'POST',
       headers: { 'Content-Type': 'image/jpeg' },
       body: imageBytes,
@@ -91,13 +92,14 @@ liveDescribe('Receipt Storage - integración real', () => {
 
     expect(uploadResponse.status, JSON.stringify(uploadBody)).toBe(201);
     expect(uploadBody.path).toMatch(
-      new RegExp(`^${session.localId}/[\\w-]+\\.jpg$`)
+      new RegExp(`^${createdSession.localId}/[\\w-]+\\.jpg$`)
     );
-    uploadedPath = uploadBody.path;
+    const createdPath = String(uploadBody.path);
+    uploadedPath = createdPath;
 
     const signedResponse = await receiptRequest(
-      `?path=${encodeURIComponent(uploadedPath)}`,
-      session.idToken
+      `?path=${encodeURIComponent(createdPath)}`,
+      createdSession.idToken
     );
     const signedBody = await signedResponse.json();
 
@@ -109,8 +111,8 @@ liveDescribe('Receipt Storage - integración real', () => {
     expect((await downloadResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
 
     const deleteResponse = await receiptRequest(
-      `?path=${encodeURIComponent(uploadedPath)}`,
-      session.idToken,
+      `?path=${encodeURIComponent(createdPath)}`,
+      createdSession.idToken,
       { method: 'DELETE' }
     );
     const deleteBody = await deleteResponse.json();
