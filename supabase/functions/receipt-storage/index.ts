@@ -50,6 +50,31 @@ async function verifyFirebaseToken(req: Request) {
   return payload.sub;
 }
 
+async function canAccessTransaction(
+  req: Request,
+  uid: string,
+  transactionId: string,
+  requireOwner = false,
+) {
+  const authorization = req.headers.get("Authorization") ?? "";
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/transactions/${encodeURIComponent(transactionId)}`,
+    { headers: { Authorization: authorization } },
+  );
+  if (!response.ok) return false;
+
+  const document = await response.json();
+  const fields = document.fields ?? {};
+  const ownerUid =
+    fields.creatorUid?.stringValue ?? fields.userId?.stringValue ?? "";
+  if (requireOwner) return ownerUid === uid;
+
+  const participantUids = (
+    fields.participantUids?.arrayValue?.values ?? []
+  ).map((value: { stringValue?: string }) => value.stringValue);
+  return ownerUid === uid || participantUids.includes(uid);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -88,11 +113,15 @@ Deno.serve(async (req) => {
     }
 
     const path = url.searchParams.get("path") ?? "";
-    if (!path.startsWith(`${uid}/`)) {
-      return json({ error: "Acceso denegado" }, 403);
-    }
+    const transactionId = url.searchParams.get("transactionId") ?? "";
 
     if (req.method === "GET") {
+      const allowed =
+        path.startsWith(`${uid}/`) ||
+        (transactionId &&
+          await canAccessTransaction(req, uid, transactionId));
+      if (!allowed) return json({ error: "Acceso denegado" }, 403);
+
       const { data, error } = await supabase.storage
         .from(BUCKET)
         .createSignedUrl(path, 3600);
@@ -102,6 +131,12 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "DELETE") {
+      const allowed =
+        path.startsWith(`${uid}/`) &&
+        (!transactionId ||
+          await canAccessTransaction(req, uid, transactionId, true));
+      if (!allowed) return json({ error: "Acceso denegado" }, 403);
+
       const { error } = await supabase.storage.from(BUCKET).remove([path]);
       if (error) throw error;
       return json({ deleted: true });
