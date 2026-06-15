@@ -19,6 +19,7 @@ import {
   DollarSign,
   FileText,
   Images,
+  Sparkles,
   Tag,
   Trash2,
   X,
@@ -34,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatMoneyInput, validateMoneyInput } from '../utils/money';
 import { formatDateInput, formatDisplayDate, parseDateInput } from '../utils/date';
 import { deleteReceipt, uploadReceipt } from '../services/receipt.service';
+import { analyzeReceipt } from '../services/receipt-ocr.service';
 import {
   pickReceiptFromLibrary,
   takeReceiptPhoto,
@@ -74,6 +76,10 @@ export default function TransactionFormSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [dateError, setDateError] = useState('');
   const [amountError, setAmountError] = useState('');
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrWarnings, setOcrWarnings] = useState<string[]>([]);
+  const [ocrCompletedFields, setOcrCompletedFields] = useState<string[]>([]);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Cargar transacción si estamos editando
@@ -99,6 +105,9 @@ export default function TransactionFormSheet({
         setOriginalImagePath(null);
         setImageChanged(false);
         setDateError('');
+        setOcrError(null);
+        setOcrWarnings([]);
+        setOcrCompletedFields([]);
         return;
       }
 
@@ -116,6 +125,9 @@ export default function TransactionFormSheet({
         setOriginalImagePath(transaction.imagePath || null);
         setImageChanged(false);
         setDateError('');
+        setOcrError(null);
+        setOcrWarnings([]);
+        setOcrCompletedFields([]);
       } else {
         Alert.alert('No encontrado', 'El movimiento ya no existe.');
         onClose();
@@ -146,6 +158,9 @@ export default function TransactionFormSheet({
     setSelectedImageUri(picked.uri);
     setSelectedImageMimeType(picked.mimeType || null);
     setImageChanged(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
   };
 
   const handlePickPhoto = async () => {
@@ -170,6 +185,72 @@ export default function TransactionFormSheet({
     setSelectedImageUri('');
     setSelectedImageMimeType(null);
     setImageChanged(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
+  };
+
+  const handleAnalyzeReceipt = async () => {
+    if (!selectedImageUri) return;
+    setIsOcrLoading(true);
+    setOcrError(null);
+    setOcrWarnings([]);
+    setOcrCompletedFields([]);
+    try {
+      const result = await analyzeReceipt({
+        uri: selectedImageUri,
+        mimeType: selectedImageMimeType,
+      });
+
+      const completed: string[] = [];
+
+      if (!title.trim() && result.title.value && result.title.confidence >= 0.75) {
+        setTitle(result.title.value);
+        completed.push('Título');
+      }
+
+      if (!amount.trim() && result.amount.value !== null && result.amount.confidence >= 0.75) {
+        setAmount(formatMoneyInput(result.amount.value));
+        completed.push('Monto');
+      }
+
+      if (!date.trim() && result.date.value && result.date.confidence >= 0.75) {
+        setDate(result.date.value);
+        completed.push('Fecha');
+      }
+
+      if (!categoryId && result.categoryHint.value && result.categoryHint.confidence >= 0.75) {
+        const matchedCategory = categories.find(
+          (cat) => cat.name.toLowerCase() === result.categoryHint.value?.toLowerCase()
+        );
+        if (matchedCategory) {
+          setCategoryId(matchedCategory.id);
+          completed.push('Categoría');
+        }
+      }
+
+      setOcrCompletedFields(completed);
+      if (result.warnings && result.warnings.length > 0) {
+        setOcrWarnings(result.warnings);
+      }
+
+      if (completed.length === 0) {
+        Alert.alert(
+          'Análisis finalizado',
+          'No se autocompletaron nuevos campos vacíos. Es posible que los campos ya contengan datos o que la confianza del análisis fuera baja.'
+        );
+      } else {
+        Alert.alert(
+          'Campos sugeridos',
+          `Se autocompletaron los campos vacíos: ${completed.join(', ')}.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Error al analizar comprobante:', err);
+      setOcrError(err.message || 'Error al analizar el comprobante.');
+    } finally {
+      setIsOcrLoading(false);
+    }
   };
 
   const triggerShake = () => {
@@ -512,7 +593,66 @@ export default function TransactionFormSheet({
                     </View>
                   </View>
                   {selectedImageUri ? (
-                    <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                    <View className="gap-3">
+                      <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                      
+                      {(type === 'expense' || type === 'shared') && (
+                        <View className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-105 dark:border-slate-750">
+                          {isOcrLoading ? (
+                            <View className="flex-row items-center justify-center py-2 gap-2">
+                              <ActivityIndicator size="small" color="#6366f1" />
+                              <Text className="text-slate-650 dark:text-slate-300 font-semibold text-xs">
+                                Analizando comprobante...
+                              </Text>
+                            </View>
+                          ) : ocrError ? (
+                            <View className="gap-2">
+                              <Text className="text-rose-500 text-xs font-semibold">{ocrError}</Text>
+                              <TouchableOpacity
+                                className="bg-indigo-650 active:bg-indigo-700 rounded-xl py-2.5 items-center"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Text className="text-white text-xs font-bold">Reintentar análisis</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <View className="flex-row items-center justify-between">
+                              <Text className="text-slate-500 dark:text-slate-400 text-xs">
+                                ¿Autocompletar campos usando IA?
+                              </Text>
+                              <TouchableOpacity
+                                className="bg-[#6366f1] active:opacity-90 rounded-xl px-4 py-2 flex-row items-center gap-1.5 shadow-sm"
+                                onPress={handleAnalyzeReceipt}
+                              >
+                                <Sparkles size={13} color="white" />
+                                <Text className="text-white text-xs font-bold">Analizar</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {/* Suggested Fields */}
+                          {ocrCompletedFields.length > 0 && (
+                            <View className="mt-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl p-3 flex-row items-center gap-2.5">
+                              <Check size={15} color="#10b981" />
+                              <Text className="text-emerald-800 dark:text-emerald-300 text-xs font-medium flex-1">
+                                Campos completados: <Text className="font-bold">{ocrCompletedFields.join(', ')}</Text>
+                              </Text>
+                            </View>
+                          )}
+
+                          {/* Warnings list */}
+                          {ocrWarnings.length > 0 && (
+                            <View className="mt-3 bg-amber-50 dark:bg-amber-950/10 border border-amber-100 dark:border-amber-900/40 rounded-xl p-3 gap-1">
+                              {ocrWarnings.map((warning, idx) => (
+                                <Text key={idx} className="text-amber-800 dark:text-amber-400 text-[11px] leading-4">
+                                  • {warning}
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
                   ) : (
                     <View className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl h-28 items-center justify-center">
                       <Camera size={24} color="#94a3b8" />
