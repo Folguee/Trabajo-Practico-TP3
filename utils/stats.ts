@@ -8,8 +8,8 @@ type StatsTransaction = Pick<
   'id' | 'title' | 'type' | 'amount' | 'categoryName' | 'date'
 >;
 
-export function calculateStats(
-  transactions: StatsTransaction[],
+export function calculateStats<T extends StatsTransaction>(
+  transactions: T[],
   now = new Date()
 ) {
   const monthlyTransactions = transactions.filter((item) =>

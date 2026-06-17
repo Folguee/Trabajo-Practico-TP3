@@ -14,11 +14,7 @@ export default function TransactionFormScreen() {
 
   const close = () => {
     setVisible(false);
-    if (id) {
-      router.replace({ pathname: '/transaction-detail', params: { id } });
-    } else {
-      router.replace('/transacciones');
-    }
+    router.replace('/transacciones');
   };
 
   return (

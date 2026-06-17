@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   RefreshControl,
@@ -13,7 +12,6 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import {
   AlertTriangle,
-  ArrowLeft,
   BarChart3,
   Pencil,
   TrendingDown,
@@ -22,9 +20,16 @@ import {
 } from 'lucide-react-native';
 import { PieChart as ChartKitPieChart } from 'react-native-chart-kit';
 import SidebarLayout from '../components/SidebarLayout';
-import { getTransactions, Transaction } from '../services/transaction.service';
+import TransactionDetailSheet from '../components/TransactionDetailSheet';
+import TransactionFormSheet from '../components/TransactionFormSheet';
+import {
+  getTransactions,
+  Transaction,
+  deleteTransaction,
+} from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
 import { useBudgetStore } from '../store/budgetStore';
+import { useAuthStore } from '../store/authStore';
 import { calculateStats } from '../utils/stats';
 import {
   formatCurrency,
@@ -32,6 +37,7 @@ import {
   validateMoneyInput,
 } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
+import { confirmDeleteTransaction } from '../utils/confirm';
 import { getCategories } from '../services/category.service';
 import type { Category } from '../types';
 
@@ -43,7 +49,13 @@ export default function StatsScreen() {
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
   const [budgetError, setBudgetError] = useState('');
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formTxId, setFormTxId] = useState<string | null>(null);
   const { budgets, setBudget } = useBudgetStore();
+  const currentUser = useAuthStore((state) => state.user);
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -107,6 +119,28 @@ export default function StatsScreen() {
     setBudgetInput(currentLimit > 0 ? formatMoneyInput(currentLimit) : '');
     setBudgetError('');
     setEditingBudget(category);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!selectedTx?.id) return;
+
+    const confirmed = await confirmDeleteTransaction();
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteTransaction(selectedTx.id);
+      setIsDetailOpen(false);
+      setSelectedTx(null);
+      loadTransactions();
+    } catch (error) {
+      Alert.alert(
+        'Error al eliminar',
+        `${error instanceof Error ? error.message : 'Error desconocido'}`
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -411,10 +445,10 @@ export default function StatsScreen() {
                   <TouchableOpacity
                     key={transaction.id || `${transaction.title}-${transaction.date}`}
                     className="flex-row items-center justify-between py-3 border-b border-slate-100 dark:border-gray-700"
-                    onPress={() =>
-                      transaction.id &&
-                      router.push({ pathname: '/transaction-detail', params: { id: transaction.id } })
-                    }
+                    onPress={() => {
+                      setSelectedTx(transaction);
+                      setIsDetailOpen(true);
+                    }}
                   >
                     <View>
                       <Text className="text-slate-800 dark:text-gray-100 font-semibold">{transaction.title}</Text>
@@ -435,6 +469,33 @@ export default function StatsScreen() {
           </View>
         </ScrollView>
       </View>
+
+      {/* Bottom Sheet de detalle de movimiento */}
+      <TransactionDetailSheet
+        visible={isDetailOpen}
+        transaction={selectedTx}
+        currentUserUid={currentUser?.uid}
+        categories={categories}
+        isDeleting={isDeleting}
+        onClose={() => setIsDetailOpen(false)}
+        onEdit={(id) => {
+          setIsDetailOpen(false);
+          setFormTxId(id);
+          setIsFormOpen(true);
+        }}
+        onExport={(id) => {
+          setIsDetailOpen(false);
+          router.push({ pathname: '/exportar', params: { transactionId: id } });
+        }}
+        onDelete={handleDeleteSelected}
+      />
+
+      <TransactionFormSheet
+        visible={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        transactionId={formTxId}
+        onSaveSuccess={loadTransactions}
+      />
     </SidebarLayout>
   );
 }
