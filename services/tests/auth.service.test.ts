@@ -41,6 +41,10 @@ vi.mock('../category.service', () => ({
   ensureDefaultCategories: vi.fn(),
 }));
 
+vi.mock('../user-directory.service', () => ({
+  syncPublicUser: vi.fn(),
+}));
+
 describe('Auth Service - registro', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -150,4 +154,3 @@ describe('Auth Service - login con Google', () => {
     expect(user.uid).toBe('google_uid_existing');
   });
 });
-

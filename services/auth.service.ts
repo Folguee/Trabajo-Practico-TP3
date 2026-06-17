@@ -17,6 +17,7 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { ensureDefaultCategories } from './category.service';
+import { syncPublicUser } from './user-directory.service';
 
 // --- Login con email y contraseña ---
 export async function login(email: string, password: string): Promise<User> {
@@ -42,6 +43,7 @@ export async function register(
     email,
     createdAt: serverTimestamp(),
   });
+  await syncPublicUser(result.user.uid, name);
   await ensureDefaultCategories(result.user.uid);
 
   return result.user;
@@ -68,6 +70,10 @@ export async function loginWithGoogle(): Promise<User> {
     });
     await ensureDefaultCategories(user.uid);
   }
+  await syncPublicUser(
+    user.uid,
+    user.displayName || user.email?.split('@')[0] || 'Usuario Google'
+  );
 
   return user;
 }
@@ -81,5 +87,17 @@ export async function logout(): Promise<void> {
 export function onAuthChange(
   callback: (user: User | null) => void
 ): () => void {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      try {
+        await syncPublicUser(
+          user.uid,
+          user.displayName || user.email?.split('@')[0] || 'Usuario'
+        );
+      } catch (error) {
+        console.warn('No se pudo sincronizar el directorio publico:', error);
+      }
+    }
+    callback(user);
+  });
 }
