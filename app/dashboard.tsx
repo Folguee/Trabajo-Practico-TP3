@@ -1,13 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  Modal,
-  Pressable,
-  Image,
   Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -19,20 +15,12 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ChevronRight,
-  Calendar,
-  FileText,
-  Tag,
-  Trash2,
-  Pencil,
-  X,
-  Download,
 } from 'lucide-react-native';
 import SidebarLayout from '../components/SidebarLayout';
-import { LinearGradient } from 'expo-linear-gradient';
 import TransactionFormSheet from '../components/TransactionFormSheet';
+import TransactionDetailSheet from '../components/TransactionDetailSheet';
 import { formatCurrency } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
-import SharedExpenseDetail from '../components/SharedExpenseDetail';
 import { useAuthStore } from '../store/authStore';
 
 export default function Dashboard() {
@@ -302,165 +290,24 @@ export default function Dashboard() {
         </ScrollView>
       </View>
 
-      {/* Modal Bottom Sheet para detalles de movimiento */}
-      <Modal
-        visible={isDetailOpen && selectedTx !== null}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsDetailOpen(false)}
-      >
-        <Pressable 
-          className="flex-1 bg-black/60 justify-end md:justify-center md:items-center"
-          onPress={() => setIsDetailOpen(false)}
-        >
-          <Pressable 
-            className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
-            onPress={(e) => e.stopPropagation()}
-          >
-            {/* Barra superior de arrastre */}
-            <View className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-4 mt-1" />
-            
-            {selectedTx && (() => {
-              const category = getCategoryConfig(selectedTx.categoryName);
-              const Icon = category.icon;
-              const isExpense = selectedTx.type === 'expense' || selectedTx.type === 'shared';
-              const isShared = selectedTx.type === 'shared';
-              const canManage =
-                !isShared || selectedTx.creatorUid === currentUser?.uid;
-
-              return (
-                <View className="w-full flex-1 flex flex-col">
-                  {/* Encabezado del Modal */}
-                  <View className="flex-row justify-between items-center mb-4">
-                    <Text className="text-slate-800 dark:text-slate-100 text-lg font-bold">Detalle del Movimiento</Text>
-                    <TouchableOpacity 
-                      className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full"
-                      onPress={() => setIsDetailOpen(false)}
-                    >
-                      <X size={18} color="#64748b" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
-                    {/* Tarjeta de Resumen */}
-                    <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
-                      <View className={`${category.bgColor} w-16 h-16 rounded-full items-center justify-center mb-3`}>
-                        <Icon size={28} color={category.iconColor} />
-                      </View>
-                      <Text className="text-slate-800 dark:text-slate-100 text-xl font-bold text-center mb-1">
-                        {selectedTx.title}
-                      </Text>
-                      <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} text-3xl font-extrabold`}>
-                        {formatCurrency(selectedTx.amount, {
-                          sign: isExpense ? 'negative' : 'positive',
-                        })}
-                      </Text>
-                    </View>
-
-                    {/* Fila: Categoría */}
-                    <View className="flex-row items-center gap-3.5 mb-3 px-1">
-                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
-                        <Tag size={18} color="#64748b" />
-                      </View>
-                      <View>
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Tipo y Categoría</Text>
-                        <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {isShared ? 'Compartido' : isExpense ? 'Gasto' : 'Ingreso'} - {selectedTx.categoryName}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Fila: Fecha */}
-                    <View className="flex-row items-center gap-3.5 mb-3 px-1">
-                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
-                        <Calendar size={18} color="#64748b" />
-                      </View>
-                      <View>
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Fecha</Text>
-                        <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm">
-                          {formatDisplayDate(selectedTx.date)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Fila: Notas */}
-                    <View className="flex-row items-start gap-3.5 mb-3 px-1">
-                      <View className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl">
-                        <FileText size={18} color="#64748b" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs">Nota</Text>
-                        <Text className="text-slate-700 dark:text-slate-300 text-sm mt-0.5 leading-relaxed">
-                          {selectedTx.note || 'Sin nota cargada.'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Detalle Compartido */}
-                    <SharedExpenseDetail
-                      transaction={selectedTx}
-                      currentUserUid={currentUser?.uid}
-                    />
-
-                    {/* Imagen adjunta */}
-                    {selectedTx.imageUrl && (
-                      <View className="mt-2 mb-4 px-1">
-                        <Text className="text-slate-400 dark:text-slate-500 text-xs mb-2">Imagen Adjunta</Text>
-                        <Image source={{ uri: selectedTx.imageUrl }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
-                      </View>
-                    )}
-                  </ScrollView>
-
-                  {/* Acciones del Modal */}
-                  <View className="flex-row gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                    {canManage ? (
-                      <TouchableOpacity
-                        className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
-                        onPress={() => {
-                          setIsDetailOpen(false);
-                          setFormTxId(selectedTx.id);
-                          setIsFormOpen(true);
-                        }}
-                      >
-                        <Pencil size={16} color="#475569" />
-                        <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Editar</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    <TouchableOpacity
-                      className="bg-slate-100 dark:bg-slate-800 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
-                      onPress={() => {
-                        setIsDetailOpen(false);
-                        router.push({ pathname: '/exportar', params: { transactionId: selectedTx.id } });
-                      }}
-                    >
-                      <Download size={16} color="#475569" />
-                      <Text className="text-slate-700 dark:text-slate-350 font-bold text-sm">Exportar</Text>
-                    </TouchableOpacity>
-
-                    {canManage ? (
-                      <TouchableOpacity
-                        className="bg-rose-500 active:bg-rose-600 rounded-xl p-3 flex-1 flex-row items-center justify-center gap-1.5"
-                        onPress={handleDeleteSelected}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting ? (
-                          <ActivityIndicator size="small" color="white" />
-                        ) : (
-                          <>
-                            <Trash2 size={16} color="white" />
-                            <Text className="text-white font-bold text-sm">Eliminar</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })()}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* Bottom Sheet de detalle de movimiento */}
+      <TransactionDetailSheet
+        visible={isDetailOpen}
+        transaction={selectedTx}
+        currentUserUid={currentUser?.uid}
+        isDeleting={isDeleting}
+        onClose={() => setIsDetailOpen(false)}
+        onEdit={(id) => {
+          setIsDetailOpen(false);
+          setFormTxId(id);
+          setIsFormOpen(true);
+        }}
+        onExport={(id) => {
+          setIsDetailOpen(false);
+          router.push({ pathname: '/exportar', params: { transactionId: id } });
+        }}
+        onDelete={handleDeleteSelected}
+      />
 
       <TransactionFormSheet
         visible={isFormOpen}
