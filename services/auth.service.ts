@@ -13,8 +13,8 @@ import {
   User,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
 } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { ensureDefaultCategories } from './category.service';
 import { syncPublicUser } from './user-directory.service';

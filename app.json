@@ -3,6 +3,7 @@
     "name": "Control de Gastos",
     "slug": "control-de-gastos",
     "version": "1.0.0",
+    "scheme": "controldegastos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +14,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "jsEngine": "jsc"
     },
     "android": {
       "adaptiveIcon": {
@@ -35,7 +37,8 @@
           "cameraPermission": "Permitir que Control de Gastos use la camara para fotografiar comprobantes.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }
