@@ -6,7 +6,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
 import {
@@ -22,6 +22,7 @@ import TransactionDetailSheet from '../components/TransactionDetailSheet';
 import { formatCurrency } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
+import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
 
 export default function Dashboard() {
   const currentUser = useAuthStore((state) => state.user);
@@ -78,7 +79,7 @@ export default function Dashboard() {
     }
   };
 
-  useFocusEffect(
+  useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
     }, [loadTransactions])
@@ -168,15 +169,15 @@ export default function Dashboard() {
   const renderSkeletonTransaction = (key: number) => (
     <View key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm opacity-60">
       <View className="flex-row items-center gap-4 flex-1">
-        <View className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
+        <View className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-800" />
         <View className="flex-1 gap-2">
-          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-850 rounded animate-pulse" />
-          <View className="h-3 w-16 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
+          <View className="h-4 w-28 bg-slate-200 dark:bg-slate-850 rounded" />
+          <View className="h-3 w-16 bg-slate-100 dark:bg-slate-800/60 rounded" />
         </View>
       </View>
       <View className="items-end gap-2 ml-3">
-        <View className="h-4 w-16 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
-        <View className="h-3 w-12 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
+        <View className="h-4 w-16 bg-slate-200 dark:bg-slate-800 rounded" />
+        <View className="h-3 w-12 bg-slate-100 dark:bg-slate-800/60 rounded" />
       </View>
     </View>
   );
@@ -200,7 +201,7 @@ export default function Dashboard() {
             <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[160px] justify-center">
               <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Resumen de Saldos</Text>
               {isLoading ? (
-                <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
+                <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1" />
               ) : (
                 <Text className={`text-4xl font-extrabold tracking-tight mb-6 ${balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {formatCurrency(balance)}
@@ -214,7 +215,7 @@ export default function Dashboard() {
                     <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium">Ingresos</Text>
                   </View>
                   {isLoading ? (
-                    <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
+                    <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1" />
                   ) : (
                     <Text className="text-emerald-500 font-bold text-sm">
                       {formatCurrency(totalIncome, { sign: 'positive' })}
@@ -227,7 +228,7 @@ export default function Dashboard() {
                     <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium">Gastos</Text>
                   </View>
                   {isLoading ? (
-                    <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1 animate-pulse" />
+                    <View className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded my-1" />
                   ) : (
                     <Text className="text-rose-500 font-bold text-sm">
                       {formatCurrency(totalExpense, { sign: 'negative' })}

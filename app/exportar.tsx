@@ -13,8 +13,9 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { Download, CalendarDays } from 'lucide-react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import SidebarLayout from '../components/SidebarLayout';
+import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
 import { getTransactions, Transaction } from '../services/transaction.service';
 import { generateAndDownloadCSV } from '../services/export.service';
 import {
@@ -54,7 +55,7 @@ export default function Exportar() {
     }
   }, []);
 
-  useFocusEffect(
+  useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
     }, [loadTransactions])

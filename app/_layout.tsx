@@ -8,7 +8,7 @@ BACKEND INIT: Escucha cambios de autenticación del servicio backend
 import "../global.css";
 import { router, Stack, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
@@ -26,7 +26,14 @@ export default function RootLayout() {
       setIsReady(true);
     });
 
-    return unsub;
+    // Red de seguridad: si por algún motivo el listener de auth no dispara,
+    // marcamos la app como lista para no quedar en loading/pantalla negra.
+    const timeout = setTimeout(() => setIsReady(true), 3000);
+
+    return () => {
+      unsub();
+      clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -45,17 +52,19 @@ export default function RootLayout() {
     }
   }, [isReady, segments, user]);
 
-  if (!isReady) {
-    return (
-      <View className="flex-1 justify-center items-center bg-white dark:bg-gray-900">
-        <ActivityIndicator size="large" color="#0f172a" />
-      </View>
-    );
-  }
-
   return (
-    <View className={`flex-1 ${theme === 'dark' ? 'dark' : ''}`}>
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }} className={theme === 'dark' ? 'dark' : ''}>
       <Stack screenOptions={{ headerShown: false }} />
+      {!isReady && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+          ]}
+        >
+          <ActivityIndicator size="large" color="#0f172a" />
+        </View>
+      )}
     </View>
   );
 }

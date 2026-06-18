@@ -3,6 +3,7 @@
     "name": "Control de Gastos",
     "slug": "control-de-gastos",
     "version": "1.0.0",
+    "scheme": "controldegastos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +14,18 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "jsEngine": "jsc",
+      "bundleIdentifier": "com.controldegastos.app",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.52896218835-2t3s4d507bbbh6eqjtsedrg8iub5vdvn"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +33,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.controldegastos.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,7 +48,8 @@
           "cameraPermission": "Permitir que Control de Gastos use la camara para fotografiar comprobantes.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }
