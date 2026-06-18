@@ -8,7 +8,7 @@ BACKEND INIT: Escucha cambios de autenticación del servicio backend
 import "../global.css";
 import { router, Stack, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
@@ -52,19 +52,19 @@ export default function RootLayout() {
     }
   }, [isReady, segments, user]);
 
-  if (!isReady) {
-    return (
-      <View
-        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}
-      >
-        <ActivityIndicator size="large" color="#0f172a" />
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }} className={theme === 'dark' ? 'dark' : ''}>
       <Stack screenOptions={{ headerShown: false }} />
+      {!isReady && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+          ]}
+        >
+          <ActivityIndicator size="large" color="#0f172a" />
+        </View>
+      )}
     </View>
   );
 }
