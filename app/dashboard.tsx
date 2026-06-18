@@ -6,7 +6,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
 import {
@@ -22,6 +22,7 @@ import TransactionDetailSheet from '../components/TransactionDetailSheet';
 import { formatCurrency } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
+import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
 
 export default function Dashboard() {
   const currentUser = useAuthStore((state) => state.user);
@@ -78,7 +79,7 @@ export default function Dashboard() {
     }
   };
 
-  useFocusEffect(
+  useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
     }, [loadTransactions])

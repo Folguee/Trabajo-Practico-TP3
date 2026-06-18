@@ -9,7 +9,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import {
   CalendarDays,
   Filter,
@@ -35,6 +35,7 @@ import {
 import { getCategories } from '../services/category.service';
 import type { Category } from '../types';
 import { useAuthStore } from '../store/authStore';
+import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -129,7 +130,7 @@ export default function Transacciones() {
     }
   }, []);
 
-  useFocusEffect(
+  useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
     }, [loadTransactions])

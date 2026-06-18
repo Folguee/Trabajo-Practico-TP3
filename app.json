@@ -16,7 +16,16 @@
     "ios": {
       "supportsTablet": true,
       "jsEngine": "jsc",
-      "bundleIdentifier": "com.controldegastos.app"
+      "bundleIdentifier": "com.controldegastos.app",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.52896218835-2t3s4d507bbbh6eqjtsedrg8iub5vdvn"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {

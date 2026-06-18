@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import {
   AlertTriangle,
   BarChart3,
@@ -40,6 +40,7 @@ import { formatDisplayDate } from '../utils/date';
 import { confirmDeleteTransaction } from '../utils/confirm';
 import { getCategories } from '../services/category.service';
 import type { Category } from '../types';
+import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -76,7 +77,7 @@ export default function StatsScreen() {
     }
   }, []);
 
-  useFocusEffect(
+  useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
     }, [loadTransactions])
