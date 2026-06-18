@@ -176,15 +176,15 @@ export default function Transacciones() {
   const renderSkeletonTransaction = (key: number) => (
     <View key={key} className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 opacity-60">
       <View className="flex-row items-center gap-4 flex-1">
-        <View className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+        <View className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700" />
         <View className="flex-1 gap-2">
-          <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-          <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+          <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+          <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded" />
         </View>
       </View>
       <View className="items-end gap-2 ml-3">
-        <View className="h-4.5 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-        <View className="h-3 w-16 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+        <View className="h-4.5 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+        <View className="h-3 w-16 bg-slate-100 dark:bg-slate-700/60 rounded" />
       </View>
     </View>
   );
@@ -350,7 +350,7 @@ export default function Transacciones() {
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold">Movimientos</Text>
         {isLoading ? (
-          <View className="h-5 w-8 bg-slate-250 dark:bg-gray-700 rounded animate-pulse" />
+          <View className="h-5 w-8 bg-slate-250 dark:bg-gray-700 rounded" />
         ) : (
           <Text className="text-slate-400 dark:text-gray-500 font-semibold">{filteredTransactions.length}</Text>
         )}

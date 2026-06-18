@@ -15,6 +15,7 @@ import {
   signInWithPopup,
   signInWithCredential,
 } from 'firebase/auth';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { ensureDefaultCategories } from './category.service';
 import { syncPublicUser } from './user-directory.service';
@@ -49,33 +50,53 @@ export async function register(
   return result.user;
 }
 
-// --- Login con Google ---
+// --- Preparación del perfil tras un login con Google (web o mobile) ---
+async function prepareGoogleUserProfile(user: User): Promise<void> {
+  // La autenticación ya fue exitosa: la preparación del perfil en Firestore
+  // (lectura, creación y sincronización) no debe bloquear el login.
+  try {
+    // Verificar si el usuario ya existe en Firestore (lookup directo por uid)
+    const userRef = doc(db, 'users', user.uid);
+    const existing = await getDoc(userRef);
+
+    if (!existing.exists()) {
+      // Si no existe, creamos su perfil con los datos de Google
+      await setDoc(userRef, {
+        uid: user.uid,
+        nombre:
+          user.displayName || user.email?.split('@')[0] || 'Usuario Google',
+        telefono: user.phoneNumber || '',
+        email: user.email || '',
+        createdAt: serverTimestamp(),
+      });
+      await ensureDefaultCategories(user.uid);
+    }
+
+    await syncPublicUser(
+      user.uid,
+      user.displayName || user.email?.split('@')[0] || 'Usuario Google'
+    );
+  } catch (error) {
+    console.warn('No se pudo preparar el perfil del usuario:', error);
+  }
+}
+
+// --- Login con Google (WEB) usando popup del navegador ---
 export async function loginWithGoogle(): Promise<User> {
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
-  const user = result.user;
+  await prepareGoogleUserProfile(result.user);
+  return result.user;
+}
 
-  // Verificar si el usuario ya existe en Firestore (lookup directo por uid)
-  const userRef = doc(db, 'users', user.uid);
-  const existing = await getDoc(userRef);
-
-  if (!existing.exists()) {
-    // Si no existe, creamos su perfil con los datos de Google
-    await setDoc(userRef, {
-      uid: user.uid,
-      nombre: user.displayName || user.email?.split('@')[0] || 'Usuario Google',
-      telefono: user.phoneNumber || '',
-      email: user.email || '',
-      createdAt: serverTimestamp(),
-    });
-    await ensureDefaultCategories(user.uid);
-  }
-  await syncPublicUser(
-    user.uid,
-    user.displayName || user.email?.split('@')[0] || 'Usuario Google'
-  );
-
-  return user;
+// --- Login con Google (MOBILE) usando el idToken obtenido vía expo-auth-session ---
+export async function loginWithGoogleCredential(
+  idToken: string
+): Promise<User> {
+  const credential = GoogleAuthProvider.credential(idToken);
+  const result = await signInWithCredential(auth, credential);
+  await prepareGoogleUserProfile(result.user);
+  return result.user;
 }
 
 // --- Cerrar sesión ---

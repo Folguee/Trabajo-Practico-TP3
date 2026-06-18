@@ -169,7 +169,7 @@ export default function StatsScreen() {
             <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[120px] justify-center">
               <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Balance del mes</Text>
               {isLoading ? (
-                <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1 animate-pulse" />
+                <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1" />
               ) : (
                 <Text className={`text-4xl font-extrabold tracking-tight ${stats.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {formatCurrency(stats.balance)}
@@ -187,7 +187,7 @@ export default function StatsScreen() {
                 </View>
                 <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Ingresos del mes</Text>
                 {isLoading ? (
-                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
+                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1" />
                 ) : (
                   <Text className="text-emerald-500 font-bold text-lg">
                     {formatCurrency(stats.income)}
@@ -200,7 +200,7 @@ export default function StatsScreen() {
                 </View>
                 <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Gastos del mes</Text>
                 {isLoading ? (
-                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1 animate-pulse" />
+                  <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1" />
                 ) : (
                   <Text className="text-rose-500 font-bold text-lg">
                     {formatCurrency(stats.expenses)}
@@ -224,7 +224,7 @@ export default function StatsScreen() {
 
             {isLoading ? (
               <View className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center min-h-[220px] justify-center">
-                <View className="w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
+                <View className="w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700" />
               </View>
             ) : (
               <>
@@ -272,10 +272,10 @@ export default function StatsScreen() {
                 [1, 2, 3].map((i) => (
                   <View key={i} className="flex-row items-center justify-between mb-4 opacity-60">
                     <View className="flex-row items-center gap-3">
-                      <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
-                      <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                      <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />
+                      <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
                     </View>
-                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
                   </View>
                 ))
               ) : categories.filter((c) => c.type === 'expense').length === 0 ? (
@@ -377,13 +377,13 @@ export default function StatsScreen() {
                   <View key={i} className="mb-4 opacity-60">
                     <View className="flex-row items-center justify-between mb-2">
                       <View className="flex-row items-center gap-3">
-                        <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
-                        <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                        <View className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />
+                        <View className="h-4.5 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
                       </View>
-                      <View className="h-4.5 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                      <View className="h-4.5 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
                     </View>
                     <View className="bg-slate-100 dark:bg-gray-700 h-3 rounded-full overflow-hidden">
-                      <View className="bg-slate-200 dark:bg-slate-700 h-3 rounded-full animate-pulse" style={{ width: '40%' }} />
+                      <View className="bg-slate-200 dark:bg-slate-700 h-3 rounded-full" style={{ width: '40%' }} />
                     </View>
                   </View>
                 ))
@@ -429,10 +429,10 @@ export default function StatsScreen() {
                 [1, 2, 3].map((i) => (
                   <View key={i} className="flex-row items-center justify-between py-3 border-b border-slate-100 dark:border-gray-700 opacity-60">
                     <View className="gap-2">
-                      <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-                      <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded animate-pulse" />
+                      <View className="h-4.5 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+                      <View className="h-3 w-20 bg-slate-100 dark:bg-slate-700/60 rounded" />
                     </View>
-                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                    <View className="h-4.5 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
                   </View>
                 ))
               ) : stats.recentTransactions.length === 0 ? (

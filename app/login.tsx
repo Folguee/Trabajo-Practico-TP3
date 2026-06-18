@@ -4,10 +4,10 @@ import { router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { login, loginWithGoogle } from '../services/auth.service';
+import { login } from '../services/auth.service';
 import { Wallet, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const loginSchema = z.object({
   email: z.string().email('Ingrese un email valido'),
@@ -45,27 +45,6 @@ export default function Login() {
       setErrorMessage(message);
     }
   };
-
-  const handleGoogleLogin = async () => {
-    setErrorMessage(null);
-    setIsGoogleSubmitting(true);
-    try {
-      await loginWithGoogle();
-      router.replace('/dashboard');
-    } catch (error: any) {
-      console.error(error);
-      let message = 'Error al iniciar sesión con Google';
-      if (error.code === 'auth/popup-blocked') {
-        message = 'El popup de autenticación fue bloqueado por el navegador';
-      } else if (error.message) {
-        message = error.message;
-      }
-      setErrorMessage(message);
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
-  };
-
 
   return (
     <View className="flex-1 bg-slate-950">
@@ -225,46 +204,13 @@ export default function Login() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Login con Google: solo en web (signInWithPopup no existe en mobile) */}
-                {Platform.OS === 'web' && (
-                  <>
-                    {/* Separador */}
-                    <View className="flex-row items-center my-4 w-full">
-                      <View className="flex-1 h-[1px] bg-slate-200 dark:bg-gray-700" />
-                      <Text className="text-xs text-slate-400 dark:text-gray-500 px-3 font-medium">O continuar con</Text>
-                      <View className="flex-1 h-[1px] bg-slate-200 dark:bg-gray-700" />
-                    </View>
-
-                    {/* Botón de Google */}
-                    <TouchableOpacity
-                      className="flex-row items-center justify-center bg-white dark:bg-gray-700 border border-slate-200 dark:border-gray-600 active:bg-slate-50 dark:active:bg-gray-600 py-3 rounded-xl w-full disabled:opacity-50 shadow-sm"
-                      onPress={handleGoogleLogin}
-                      disabled={isSubmitting || isGoogleSubmitting}
-                    >
-                      <Svg width={20} height={20} viewBox="0 0 24 24" style={{ marginRight: 10 }}>
-                        <Path
-                          fill="#4285F4"
-                          d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.716 5.716 0 0 1-2.48 3.77v3.13h3.99c2.34-2.16 3.69-5.32 3.69-8.75z"
-                        />
-                        <Path
-                          fill="#34A853"
-                          d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.99-3.13a7.18 7.18 0 0 1-11.87-3.88H.05v3.23A11.997 11.997 0 0 0 12 24z"
-                        />
-                        <Path
-                          fill="#FBBC05"
-                          d="M4.07 14.08a7.18 7.18 0 0 1 0-4.54V6.31H.05a11.99 11.99 0 0 0 0 11.38l4.02-3.61z"
-                        />
-                        <Path
-                          fill="#EA4335"
-                          d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43A11.93 11.93 0 0 0 12 0 11.997 11.997 0 0 0 .05 6.31l4.02 3.61c.95-2.84 3.59-5.17 7.93-5.17z"
-                        />
-                      </Svg>
-                      <Text className="text-slate-700 dark:text-gray-200 font-semibold text-base">
-                        {isGoogleSubmitting ? 'Cargando...' : 'Google'}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+                {/* Login con Google (web: popup; mobile: OAuth nativo si hay Client IDs) */}
+                <GoogleSignInButton
+                  disabled={isSubmitting || isGoogleSubmitting}
+                  isSubmitting={isGoogleSubmitting}
+                  setIsSubmitting={setIsGoogleSubmitting}
+                  onError={(message) => setErrorMessage(message || null)}
+                />
 
                 <View className="flex-row justify-center mt-6">
 
