@@ -1,44 +1,39 @@
 /**
- * Hook seguro que reemplaza useFocusEffect de expo-router/react-navigation.
- * 
- * Problema: useFocusEffect usa internamente useNavigation(), que lanza un
- * error si el componente se renderiza antes de que el Stack navigator haya
- * propagado su contexto (race condition en Expo Router mobile).
- * 
- * Solución: Verificamos si NavigationContext existe. Si sí, usamos
- * useFocusEffect normal. Si no, usamos useEffect como fallback seguro.
- * 
- * Para cumplir las reglas de hooks (no llamar hooks condicionalmente),
- * siempre llamamos useEffect, pero controlamos cuál ejecuta el callback.
+ * Hook que ejecuta un callback cuando la pantalla se monta (y limpia al desmontar).
+ *
+ * Contexto: originalmente esto envolvía `useFocusEffect` de
+ * expo-router / @react-navigation/native para recargar datos al volver a enfocar
+ * una pantalla. Sin embargo, en este proyecto existen DOS copias resueltas de
+ * `@react-navigation/native` en node_modules (pnpm), por lo que el
+ * `NavigationContext` / `NavigationStateContext` importado podía ser una
+ * instancia DISTINTA a la que provee Expo Router. Al leer ese contexto "huérfano"
+ * se accede a sus getters por defecto, que lanzan:
+ *   "Couldn't find a navigation context. Have you wrapped your app with
+ *    'NavigationContainer'?"
+ *
+ * Solución: no dependemos de ningún contexto de navegación. Usamos `useEffect`
+ * puro. En Expo Router, navegar entre tabs con `router.push` desmonta/monta las
+ * pantallas, por lo que el efecto vuelve a ejecutarse al regresar a la pantalla,
+ * logrando el mismo objetivo (recargar datos) sin tocar el contexto de navegación.
  */
-import { useCallback, useContext, useEffect, useRef } from 'react';
-import { NavigationContext } from '@react-navigation/native';
+import { useEffect, useRef } from 'react';
 
 export function useSafeFocusEffect(callback: () => void | (() => void)) {
-  const navigation = useContext(NavigationContext);
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
-  // Ruta 1: Si hay contexto de navegación, escuchamos el evento 'focus'
   useEffect(() => {
-    if (!navigation) return;
-
-    // Ejecutar inmediatamente (la pantalla ya está enfocada si estamos montados)
-    const cleanup = callbackRef.current();
-
-    const unsubFocus = navigation.addListener('focus', () => {
-      callbackRef.current();
-    });
+    let cleanup: void | (() => void);
+    try {
+      cleanup = callbackRef.current();
+    } catch {
+      cleanup = undefined;
+    }
 
     return () => {
-      unsubFocus();
       if (typeof cleanup === 'function') cleanup();
     };
-  }, [navigation]);
-
-  // Ruta 2: Si NO hay contexto de navegación (fallback), ejecutar al montar
-  useEffect(() => {
-    if (navigation) return;
-    return callbackRef.current();
-  }, [navigation]);
+    // Solo al montar/desmontar: queremos ejecutar una vez al entrar a la pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }
