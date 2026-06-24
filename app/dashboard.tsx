@@ -6,6 +6,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import { router } from 'expo-router';
 import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
 import { getCategoryConfig } from '../constants/transactions';
 import {
@@ -105,11 +106,8 @@ export default function Dashboard() {
   const balance = totalIncome - totalExpense;
   const hasTransactions = transactions.length > 0;
 
-  const handleNavigate = useCallback((_route: string) => {
-    Alert.alert(
-      'Navegación temporalmente deshabilitada',
-      'Esta acción se reactivará cuando terminemos de estabilizar la navegación.'
-    );
+  const handleNavigate = useCallback((route: string) => {
+    router.push(route as any);
   }, []);
 
   const renderEmptyState = () => (
@@ -301,12 +299,9 @@ export default function Dashboard() {
           setFormTxId(id);
           setIsFormOpen(true);
         }}
-        onExport={() => {
+        onExport={(id) => {
           setIsDetailOpen(false);
-          Alert.alert(
-            'Exportación temporalmente deshabilitada',
-            'Esta acción se reactivará cuando terminemos de estabilizar la navegación.'
-          );
+          router.push({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />

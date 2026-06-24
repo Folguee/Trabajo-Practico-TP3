@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { router } from 'expo-router';
 import { Home, List, BarChart3, User, LogOut, Moon, Sun, Download } from 'lucide-react-native';
 import { useThemeStore } from '../store/themeStore';
+import { logout } from '../services/auth.service';
 import BottomNav, { TabKey } from './BottomNav';
 
 const sidebarTabs: Array<{ key: TabKey; label: string; icon: typeof Home; route: string }> = [
@@ -28,6 +30,26 @@ export default function SidebarLayout({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
+  const handleNavigate = (route: string) => {
+    if (onNavigate) {
+      onNavigate(route);
+      return;
+    }
+    router.push(route as any);
+  };
+
+  const handleLogout = async () => {
+    if (onLogout) {
+      await onLogout();
+      return;
+    }
+    try {
+      await logout();
+    } finally {
+      router.replace('/');
+    }
+  };
+
   return (
     <View className="flex-1 flex-row bg-slate-50 dark:bg-slate-950">
       {!isMobile && (
@@ -48,7 +70,7 @@ export default function SidebarLayout({
                   className={`flex-row items-center gap-3 px-3 py-3 rounded-xl ${
                     isActive ? 'bg-[#0f172a] dark:bg-indigo-600' : 'active:bg-slate-100 dark:active:bg-slate-800'
                   }`}
-                  onPress={() => onNavigate?.(tab.route)}
+                  onPress={() => handleNavigate(tab.route)}
                 >
                   <Icon size={20} color={isActive ? 'white' : '#64748b'} />
                   <Text className={`text-sm ${isActive ? 'text-white font-semibold' : 'text-slate-600 dark:text-gray-400'}`}>
@@ -71,7 +93,7 @@ export default function SidebarLayout({
 
           <TouchableOpacity
             className="flex-row items-center gap-3 px-3 py-3 w-full rounded-xl active:bg-rose-50 dark:active:bg-rose-950/20"
-            onPress={onLogout}
+            onPress={handleLogout}
           >
             <LogOut size={20} color="#f43f5e" />
             <Text className="text-rose-500 font-semibold text-sm">Cerrar Sesión</Text>
@@ -81,7 +103,7 @@ export default function SidebarLayout({
 
       <View className="flex-1 flex-col">
         <View className="flex-1">{children}</View>
-        {isMobile && <BottomNav active={active} onNavigate={(route) => onNavigate?.(route)} />}
+        {isMobile && <BottomNav active={active} onNavigate={handleNavigate} />}
       </View>
     </View>
   );
