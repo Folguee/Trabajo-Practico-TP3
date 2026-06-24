@@ -1,8 +1,8 @@
 import { View, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { logout } from '../services/auth.service';
 import { Home, List, BarChart3, User, LogOut, Moon, Sun, Download } from 'lucide-react-native';
 import { useThemeStore } from '../store/themeStore';
+import { logout } from '../services/auth.service';
 import BottomNav, { TabKey } from './BottomNav';
 
 const sidebarTabs: Array<{ key: TabKey; label: string; icon: typeof Home; route: string }> = [
@@ -13,23 +13,35 @@ const sidebarTabs: Array<{ key: TabKey; label: string; icon: typeof Home; route:
   { key: 'perfil', label: 'Perfil', icon: User, route: '/perfil' },
 ];
 
-export default function SidebarLayout({ active, children }: { active: TabKey; children: React.ReactNode }) {
+type SidebarLayoutProps = {
+  active: TabKey;
+  children: React.ReactNode;
+};
+
+export default function SidebarLayout({
+  active,
+  children,
+}: SidebarLayoutProps) {
   const { theme, toggleTheme } = useThemeStore();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
+  const handleNavigate = (route: string) => {
+    // replace (no push) para que cambiar de pestaña no apile historial
+    // y el layout/nav compartido permanezca montado.
+    router.replace(route as any);
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
-      router.replace('/');
-    } catch {
+    } finally {
       router.replace('/');
     }
   };
 
   return (
     <View className="flex-1 flex-row bg-slate-50 dark:bg-slate-950">
-      {/* Barra Lateral (Sidebar) - Solo visible en Escritorio */}
       {!isMobile && (
         <View className="w-56 bg-white dark:bg-slate-900 pt-14 pb-8 px-4 items-center border-r border-slate-200 dark:border-slate-800">
           <View className="w-full mb-8 px-2">
@@ -48,7 +60,7 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
                   className={`flex-row items-center gap-3 px-3 py-3 rounded-xl ${
                     isActive ? 'bg-[#0f172a] dark:bg-indigo-600' : 'active:bg-slate-100 dark:active:bg-slate-800'
                   }`}
-                  onPress={() => router.push(tab.route)}
+                  onPress={() => handleNavigate(tab.route)}
                 >
                   <Icon size={20} color={isActive ? 'white' : '#64748b'} />
                   <Text className={`text-sm ${isActive ? 'text-white font-semibold' : 'text-slate-600 dark:text-gray-400'}`}>
@@ -59,7 +71,6 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
             })}
           </View>
 
-          {/* Selector de Tema */}
           <TouchableOpacity
             className="flex-row items-center gap-3 px-3 py-3 w-full rounded-xl mb-2 active:bg-slate-100 dark:active:bg-slate-800"
             onPress={toggleTheme}
@@ -70,7 +81,6 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
             </Text>
           </TouchableOpacity>
 
-          {/* Cerrar Sesión */}
           <TouchableOpacity
             className="flex-row items-center gap-3 px-3 py-3 w-full rounded-xl active:bg-rose-50 dark:active:bg-rose-950/20"
             onPress={handleLogout}
@@ -81,16 +91,9 @@ export default function SidebarLayout({ active, children }: { active: TabKey; ch
         </View>
       )}
 
-      {/* Contenedor del Contenido Principal */}
       <View className="flex-1 flex-col">
-        <View className="flex-1">
-          {children}
-        </View>
-
-        {/* Navegación Inferior (BottomNav) - Solo visible en Móviles */}
-        {isMobile && (
-          <BottomNav active={active} />
-        )}
+        <View className="flex-1">{children}</View>
+        {isMobile && <BottomNav active={active} onNavigate={handleNavigate} />}
       </View>
     </View>
   );

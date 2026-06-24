@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -72,6 +73,15 @@ export default function TransactionFormSheet({
 }: TransactionFormSheetProps) {
   const insets = useSafeAreaInsets();
   const isEditing = Boolean(transactionId);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [title, setTitle] = useState('');
@@ -108,12 +118,16 @@ export default function TransactionFormSheet({
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const loadPublicUsers = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setIsLoadingUsers(true);
     setUsersError('');
     try {
-      setPublicUsers(await getPublicUsers());
+      const users = await getPublicUsers();
+      if (!isMountedRef.current) return;
+      setPublicUsers(users);
     } catch (error) {
       console.error('Error cargando directorio publico:', error);
+      if (!isMountedRef.current) return;
       setPublicUsers([]);
       setUsersError(
         error instanceof Error
@@ -121,15 +135,19 @@ export default function TransactionFormSheet({
           : 'No se pudo cargar la lista de usuarios'
       );
     } finally {
-      setIsLoadingUsers(false);
+      if (isMountedRef.current) {
+        setIsLoadingUsers(false);
+      }
     }
   }, []);
 
   // Cargar transacción si estamos editando
   const loadTransaction = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setIsLoading(true);
     try {
       const loadedCategories = await getCategories();
+      if (!isMountedRef.current) return;
       setCategories(loadedCategories);
       await loadPublicUsers();
       const currentUser = auth.currentUser;
@@ -288,7 +306,9 @@ export default function TransactionFormSheet({
       console.error('Error cargando transacción:', error);
       Alert.alert('Error', 'No se pudo cargar el formulario.');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [initialType, transactionId, onClose, loadPublicUsers]);
 
@@ -685,7 +705,8 @@ export default function TransactionFormSheet({
         onPress={onClose}
       >
         <Pressable
-          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
+          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
+          style={{ maxHeight: Dimensions.get('window').height * 0.85 }}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Barra superior de arrastre */}
@@ -696,7 +717,7 @@ export default function TransactionFormSheet({
               <ActivityIndicator size="large" color="#0f172a" />
             </View>
           ) : (
-            <View className="w-full flex-1 flex flex-col">
+            <View className="w-full">
               {/* Encabezado */}
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-slate-800 dark:text-slate-100 text-xl font-bold">
@@ -710,7 +731,12 @@ export default function TransactionFormSheet({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                className="mb-4"
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
+              >
                 {/* Comprobante Adjunto (arriba para auto-completar) */}
                 <View
                   className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-5 ${
@@ -775,7 +801,7 @@ export default function TransactionFormSheet({
                           </Text>
                         </View>
                       ) : (
-                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                        <Image source={{ uri: selectedImageUri }} resizeMode="contain" className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800" />
                       )}
                       
                       {(type === 'expense' || type === 'shared') && (
@@ -1214,21 +1240,22 @@ export default function TransactionFormSheet({
                     onChangeText={setNote}
                   />
                 </View>
-              </ScrollView>
 
-              {/* Botón de Guardado */}
-              <TouchableOpacity
-                className={`rounded-xl p-4 flex-row items-center justify-center gap-2 ${
-                  isSaving ? 'bg-slate-400' : 'bg-[#0f172a] dark:bg-indigo-600 active:opacity-95 shadow-md'
-                }`}
-                disabled={isSaving}
-                onPress={handleSave}
-              >
-                {isSaving ? <ActivityIndicator color="white" /> : <Check size={18} color="white" />}
-                <Text className="text-white font-bold text-base">
-                  {isSaving ? 'Guardando...' : 'Guardar Movimiento'}
-                </Text>
-              </TouchableOpacity>
+                {/* Botón de Guardado */}
+                <TouchableOpacity
+                  className={`rounded-xl p-4 flex-row items-center justify-center gap-2 mt-2 ${
+                    isSaving ? 'bg-slate-400' : 'bg-[#0f172a] dark:bg-indigo-600 active:opacity-95 shadow-md'
+                  }`}
+                  style={{ marginBottom: Math.max(insets.bottom, 16) }}
+                  disabled={isSaving}
+                  onPress={handleSave}
+                >
+                  {isSaving ? <ActivityIndicator color="white" /> : <Check size={18} color="white" />}
+                  <Text className="text-white font-bold text-base">
+                    {isSaving ? 'Guardando...' : 'Guardar Movimiento'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
           )}
         </Pressable>

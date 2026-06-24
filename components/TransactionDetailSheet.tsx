@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -60,7 +61,8 @@ export default function TransactionDetailSheet({
         onPress={onClose}
       >
         <Pressable
-          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
+          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
+          style={{ maxHeight: Dimensions.get('window').height * 0.85 }}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Barra superior de arrastre */}
@@ -80,7 +82,7 @@ export default function TransactionDetailSheet({
               const canManage = !isShared || transaction.creatorUid === currentUserUid;
 
               return (
-                <View className="w-full flex-1 flex flex-col">
+                <View className="w-full">
                   {/* Encabezado del Modal */}
                   <View className="flex-row justify-between items-center mb-4">
                     <Text className="text-slate-800 dark:text-slate-100 text-lg font-bold">
@@ -94,7 +96,11 @@ export default function TransactionDetailSheet({
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    className="mb-4"
+                    style={{ flexShrink: 1 }}
+                  >
                     {/* Tarjeta de Resumen */}
                     <View className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-5 items-center border border-slate-100 dark:border-slate-800 mb-6">
                       <View
@@ -186,7 +192,8 @@ export default function TransactionDetailSheet({
                         </Text>
                         <Image
                           source={{ uri: transaction.imageUrl }}
-                          className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800"
+                          resizeMode="contain"
+                          className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800"
                         />
                       </View>
                     )}

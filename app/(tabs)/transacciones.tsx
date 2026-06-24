@@ -16,14 +16,13 @@ import {
   Plus,
   Search,
 } from 'lucide-react-native';
-import SidebarLayout from '../components/SidebarLayout';
-import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
+import { type Transaction } from '../../services/transaction.service';
 import {
   getCategoryConfig,
-} from '../constants/transactions';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import { formatCurrency } from '../utils/money';
+} from '../../constants/transactions';
+import TransactionFormSheet from '../../components/TransactionFormSheet';
+import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import { formatCurrency } from '../../utils/money';
 import {
   endOfDay,
   formatDateInput,
@@ -31,11 +30,12 @@ import {
   isInCurrentMonth,
   isSameDay,
   parseDateInput,
-} from '../utils/date';
-import { getCategories } from '../services/category.service';
-import type { Category } from '../types';
-import { useAuthStore } from '../store/authStore';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+} from '../../utils/date';
+import { getCategories } from '../../services/category.service';
+import type { Category } from '../../types';
+import { useAuthStore } from '../../store/authStore';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { useTransactions } from '../../hooks/useTransactions';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -62,7 +62,6 @@ const formatAmount = (transaction: Transaction) => {
 
 export default function Transacciones() {
   const currentUser = useAuthStore((state) => state.user);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -70,8 +69,14 @@ export default function Transacciones() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    transactions,
+    isLoading,
+    isRefreshing,
+    loadTransactions,
+    handleRefresh,
+    removeTransaction,
+  } = useTransactions();
 
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -100,10 +105,9 @@ export default function Transacciones() {
 
     try {
       setIsDeleting(true);
-      await deleteTransaction(selectedTx.id);
+      await removeTransaction(selectedTx.id);
       setIsDetailOpen(false);
       setSelectedTx(null);
-      loadTransactions();
     } catch (error) {
       Alert.alert('Error al eliminar', `${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
@@ -111,29 +115,22 @@ export default function Transacciones() {
     }
   };
 
-  const loadTransactions = useCallback(async () => {
+  const loadCategories = useCallback(async () => {
     try {
-      const [loadedTransactions, loadedCategories] = await Promise.all([
-        getTransactions(),
-        getCategories(),
-      ]);
-      setTransactions(loadedTransactions);
-      setCategories(loadedCategories);
+      setCategories(await getCategories());
     } catch (error) {
       Alert.alert(
         'Error de conexion',
         error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
       );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, []);
 
   useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [loadTransactions])
+      loadCategories();
+    }, [loadCategories, loadTransactions])
   );
 
   const filteredTransactions = useMemo(() => {
@@ -168,11 +165,6 @@ export default function Transacciones() {
       return matchesSearch && matchesType && matchesCategory && matchesDate;
     });
   }, [categoryFilter, dateFilter, search, transactions, typeFilter, dateFrom, dateTo]);
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadTransactions();
-  };
 
   const renderSkeletonTransaction = (key: number) => (
     <View key={key} className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 opacity-60">
@@ -360,7 +352,7 @@ export default function Transacciones() {
   );
 
   return (
-    <SidebarLayout active="transacciones">
+    <>
       <View className="flex-1">
         <View className="bg-[#0f172a] pt-16 pb-24 px-6 rounded-b-[32px] md:pt-14 md:pb-20 shadow-sm">
           <View className="flex-row items-center justify-between">
@@ -419,7 +411,7 @@ export default function Transacciones() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -430,6 +422,6 @@ export default function Transacciones() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </SidebarLayout>
+    </>
   );
 }

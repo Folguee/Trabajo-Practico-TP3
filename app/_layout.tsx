@@ -6,9 +6,10 @@ BACKEND INIT: Escucha cambios de autenticación del servicio backend
 */
 
 import "../global.css";
-import { router, Stack, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { colorScheme } from "nativewind";
 import { onAuthChange } from "../services/auth.service";
 import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/themeStore";
@@ -16,9 +17,13 @@ import { useThemeStore } from "../store/themeStore";
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
-  const user = useAuthStore((state) => state.user);
   const theme = useThemeStore((state) => state.theme);
-  const segments = useSegments();
+
+  // Aplica el tema al motor de NativeWind para que las variantes `dark:`
+  // se activen realmente en iOS/Android/web. Sin esto, sólo cambiaba el icono.
+  useEffect(() => {
+    colorScheme.set(theme);
+  }, [theme]);
 
   useEffect(() => {
     const unsub = onAuthChange((firebaseUser) => {
@@ -36,33 +41,26 @@ export default function RootLayout() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isReady) return;
-
-    const firstSegment = segments[0];
-    const publicRoute =
-      !firstSegment ||
-      firstSegment === 'login' ||
-      firstSegment === 'register';
-
-    if (!user && !publicRoute) {
-      router.replace('/login');
-    } else if (user && publicRoute) {
-      router.replace('/dashboard');
-    }
-  }, [isReady, segments, user]);
+  const isDark = theme === 'dark';
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#ffffff' }} className={theme === 'dark' ? 'dark' : ''}>
+    <View
+      style={{ flex: 1, backgroundColor: isDark ? '#0f172a' : '#ffffff' }}
+      className={isDark ? 'dark' : ''}
+    >
       <Stack screenOptions={{ headerShown: false }} />
       {!isReady && (
         <View
           style={[
             StyleSheet.absoluteFill,
-            { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+            {
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+            },
           ]}
         >
-          <ActivityIndicator size="large" color="#0f172a" />
+          <ActivityIndicator size="large" color={isDark ? '#ffffff' : '#0f172a'} />
         </View>
       )}
     </View>

@@ -7,8 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
-import { getCategoryConfig } from '../constants/transactions';
+import { Transaction } from '../../services/transaction.service';
 import {
   Plus,
   Wallet,
@@ -16,62 +15,51 @@ import {
   ArrowDownLeft,
   ChevronRight,
 } from 'lucide-react-native';
-import SidebarLayout from '../components/SidebarLayout';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import { formatCurrency } from '../utils/money';
-import { formatDisplayDate } from '../utils/date';
-import { useAuthStore } from '../store/authStore';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+import { TransactionFormSheet, TransactionDetailSheet, TransactionRow } from '../../components';
+import { formatCurrency } from '../../utils/money';
+import { useAuthStore } from '../../store/authStore';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { useTransactions } from '../../hooks/useTransactions';
 
 export default function Dashboard() {
   const currentUser = useAuthStore((state) => state.user);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    transactions,
+    isLoading,
+    loadTransactions,
+    removeTransaction,
+  } = useTransactions();
+
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formTxId, setFormTxId] = useState<string | null>(null);
 
-  const loadTransactions = useCallback(async () => {
-    try {
-      setTransactions(await getTransactions());
-    } catch (error) {
-      Alert.alert(
-        'Error de conexion',
-        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   const handleDeleteSelected = async () => {
     if (!selectedTx?.id) return;
-    
+
     const isWeb = typeof window !== 'undefined';
     const confirmed = isWeb
       ? window.confirm('¿Estás seguro de que quieres eliminar este movimiento? Esta acción no se puede deshacer.')
-      : await new Promise<boolean>(resolve => {
-        Alert.alert(
-          'Eliminar movimiento',
-          'Esta acción no se puede deshacer.',
-          [
-            { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) },
-          ]
-        );
-      });
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Eliminar movimiento',
+            'Esta acción no se puede deshacer.',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Eliminar', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
 
     if (!confirmed) return;
 
     try {
       setIsDeleting(true);
-      await deleteTransaction(selectedTx.id);
+      await removeTransaction(selectedTx.id);
       setIsDetailOpen(false);
       setSelectedTx(null);
-      loadTransactions();
     } catch (error) {
       Alert.alert('Error al eliminar', `${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
@@ -107,6 +95,10 @@ export default function Dashboard() {
   const balance = totalIncome - totalExpense;
   const hasTransactions = transactions.length > 0;
 
+  const handleNavigate = useCallback((route: string) => {
+    router.replace(route as any);
+  }, []);
+
   const renderEmptyState = () => (
     <View className="items-center py-12 px-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
       <View className="bg-indigo-50 dark:bg-indigo-950/30 w-16 h-16 rounded-full items-center justify-center mb-4">
@@ -131,41 +123,6 @@ export default function Dashboard() {
     </View>
   );
 
-  const renderRecentTransaction = (item: Transaction) => {
-    const category = getCategoryConfig(item.categoryName);
-    const Icon = category.icon;
-    const isExpense = item.type === 'expense' || item.type === 'shared';
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm active:opacity-90"
-        onPress={() => {
-          setSelectedTx(item);
-          setIsDetailOpen(true);
-        }}
-      >
-        <View className="flex-row items-center gap-4 flex-1">
-          <View className={`${category.bgColor} w-11 h-11 rounded-full items-center justify-center`}>
-            <Icon size={20} color={category.iconColor} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm" numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{formatDisplayDate(item.date)}</Text>
-          </View>
-        </View>
-        <View className="items-end ml-3">
-          <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-sm`}>
-            {formatCurrency(item.amount, { sign: isExpense ? 'negative' : 'positive' })}
-          </Text>
-          <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.categoryName}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
   const renderSkeletonTransaction = (key: number) => (
     <View key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm opacity-60">
       <View className="flex-row items-center gap-4 flex-1">
@@ -183,10 +140,9 @@ export default function Dashboard() {
   );
 
   return (
-    <SidebarLayout active="dashboard">
-      <View className="flex-1">
+    <>
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {/* Cabecera / Banner superior - Consistente con las demás pantallas (Sólido Navy #0f172a) */}
           <View className="bg-[#0f172a] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
             <View className="flex-row items-center justify-between">
               <View>
@@ -196,7 +152,6 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Tarjeta de Saldos principal (Sólida sin degradados, flotando sobre el banner) */}
           <View className="px-6 -mt-16">
             <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[160px] justify-center">
               <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Resumen de Saldos</Text>
@@ -239,7 +194,6 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Acciones Rápidas */}
           <View className="px-6 mt-8">
             <Text className="text-slate-800 dark:text-slate-200 text-lg font-bold mb-3">Acciones Rápidas</Text>
             <TouchableOpacity
@@ -266,8 +220,8 @@ export default function Dashboard() {
               <View>
                 <View className="flex-row justify-between items-center mb-4">
                   <Text className="text-slate-800 dark:text-slate-200 text-lg font-bold">Transacciones Recientes</Text>
-                  <TouchableOpacity 
-                    onPress={() => router.push('/transacciones')}
+                  <TouchableOpacity
+                    onPress={() => handleNavigate('/transacciones')}
                     className="flex-row items-center gap-1 active:opacity-75"
                   >
                     <Text className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm">Ver todas</Text>
@@ -275,11 +229,20 @@ export default function Dashboard() {
                   </TouchableOpacity>
                 </View>
 
-                {recentTransactions.map(renderRecentTransaction)}
+                {recentTransactions.map((item) => (
+                  <TransactionRow
+                    key={item.id}
+                    item={item}
+                    onPress={(tx) => {
+                      setSelectedTx(tx);
+                      setIsDetailOpen(true);
+                    }}
+                  />
+                ))}
 
-                <TouchableOpacity 
-                  onPress={() => router.push("/exportar")} 
-                  className="bg-[#0f172a] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl mt-4 active:bg-slate-800" 
+                <TouchableOpacity
+                  onPress={() => handleNavigate('/exportar')}
+                  className="bg-[#0f172a] dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl mt-4 active:bg-slate-800"
                 >
                   <Text className="text-white dark:text-slate-200 font-bold text-center">Ir a Exportar Reportes</Text>
                 </TouchableOpacity>
@@ -289,9 +252,6 @@ export default function Dashboard() {
             )}
           </View>
         </ScrollView>
-      </View>
-
-      {/* Bottom Sheet de detalle de movimiento */}
       <TransactionDetailSheet
         visible={isDetailOpen}
         transaction={selectedTx}
@@ -305,7 +265,7 @@ export default function Dashboard() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -316,6 +276,7 @@ export default function Dashboard() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </SidebarLayout>
+      </View>
+    </>
   );
 }

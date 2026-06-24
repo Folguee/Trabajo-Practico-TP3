@@ -19,34 +19,36 @@ import {
   Wallet,
 } from 'lucide-react-native';
 import { PieChart as ChartKitPieChart } from 'react-native-chart-kit';
-import SidebarLayout from '../components/SidebarLayout';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-import {
-  getTransactions,
-  Transaction,
-  deleteTransaction,
-} from '../services/transaction.service';
-import { getCategoryConfig } from '../constants/transactions';
-import { useBudgetStore } from '../store/budgetStore';
-import { useAuthStore } from '../store/authStore';
-import { calculateStats } from '../utils/stats';
+import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import TransactionFormSheet from '../../components/TransactionFormSheet';
+import { Transaction } from '../../services/transaction.service';
+import { getCategoryConfig } from '../../constants/transactions';
+import { useBudgetStore } from '../../store/budgetStore';
+import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
+import { calculateStats } from '../../utils/stats';
 import {
   formatCurrency,
   formatMoneyInput,
   validateMoneyInput,
-} from '../utils/money';
-import { formatDisplayDate } from '../utils/date';
-import { confirmDeleteTransaction } from '../utils/confirm';
-import { getCategories } from '../services/category.service';
-import type { Category } from '../types';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+} from '../../utils/money';
+import { formatDisplayDate } from '../../utils/date';
+import { confirmDeleteTransaction } from '../../utils/confirm';
+import { getCategories } from '../../services/category.service';
+import type { Category } from '../../types';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { useTransactions } from '../../hooks/useTransactions';
 
 export default function StatsScreen() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    transactions,
+    isLoading,
+    isRefreshing,
+    loadTransactions,
+    handleRefresh,
+    removeTransaction,
+  } = useTransactions();
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
   const [budgetError, setBudgetError] = useState('');
@@ -57,30 +59,24 @@ export default function StatsScreen() {
   const [formTxId, setFormTxId] = useState<string | null>(null);
   const { budgets, setBudget } = useBudgetStore();
   const currentUser = useAuthStore((state) => state.user);
+  const { theme } = useThemeStore();
 
-  const loadTransactions = useCallback(async () => {
+  const loadCategories = useCallback(async () => {
     try {
-      const [loadedTransactions, loadedCategories] = await Promise.all([
-        getTransactions(),
-        getCategories(),
-      ]);
-      setTransactions(loadedTransactions);
-      setCategories(loadedCategories);
+      setCategories(await getCategories());
     } catch (error) {
       Alert.alert(
         'Error de conexion',
         error instanceof Error ? error.message : 'No se pudieron cargar las estadisticas.'
       );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, []);
 
   useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [loadTransactions])
+      loadCategories();
+    }, [loadCategories, loadTransactions])
   );
 
   const stats = useMemo(() => {
@@ -96,12 +92,6 @@ export default function StatsScreen() {
     ...stats.expensesByCategory.map(([, amount]) => amount),
     1
   );
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadTransactions();
-  };
-
   const handleSetBudget = (category: string) => {
     const validation = validateMoneyInput(budgetInput);
     if (!validation.valid) {
@@ -130,10 +120,9 @@ export default function StatsScreen() {
 
     try {
       setIsDeleting(true);
-      await deleteTransaction(selectedTx.id);
+      await removeTransaction(selectedTx.id);
       setIsDetailOpen(false);
       setSelectedTx(null);
-      loadTransactions();
     } catch (error) {
       Alert.alert(
         'Error al eliminar',
@@ -145,29 +134,29 @@ export default function StatsScreen() {
   };
 
   return (
-    <SidebarLayout active="stats">
+    <>
       <View className="flex-1">
         <ScrollView
           className="flex-1"
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
           showsVerticalScrollIndicator={false}
         >
-          {/* Cabecera / Banner superior - Consistente con las demás pantallas (Sólido Navy #0f172a) */}
-          <View className="bg-[#0f172a] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
+          {/* Cabecera / Banner superior - Consistente con las demás pantallas */}
+          <View className="bg-[#0a1424] dark:bg-[#070e1b] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
             <View className="flex-row items-center justify-between">
               <View>
                 <Text className="text-white text-3xl font-extrabold tracking-tight mb-1">Estadísticas</Text>
                 <Text className="text-slate-400 text-sm">Reportes y análisis de tus movimientos</Text>
               </View>
-              <View className="bg-slate-800/80 p-2.5 rounded-full border border-slate-700/50 hidden md:flex">
-                <BarChart3 size={20} color="#818cf8" />
+              <View className="bg-slate-900/70 dark:bg-slate-800/80 p-2.5 rounded-full border border-slate-800 hidden md:flex">
+                <BarChart3 size={20} color="#38bdf8" />
               </View>
             </View>
           </View>
 
           {/* Tarjeta de Balance principal (Estilo unificado con el Dashboard, flotando sobre el banner) */}
           <View className="px-6 -mt-16 mb-6">
-            <View className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-xl min-h-[120px] justify-center">
+            <View className="bg-white dark:bg-[#0b1730] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 shadow-xl min-h-[120px] justify-center">
               <Text className="text-slate-400 dark:text-slate-500 text-xs font-semibold mb-1 uppercase tracking-wider">Balance del mes</Text>
               {isLoading ? (
                 <View className="h-10 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg my-1" />
@@ -182,28 +171,28 @@ export default function StatsScreen() {
           {/* Contenido Principal con Spacing */}
           <View className="px-6">
             <View className="flex-row gap-3 mb-6">
-              <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
-                <View className="bg-emerald-100 w-12 h-12 rounded-full items-center justify-center mb-3">
-                  <TrendingUp size={24} color="#10b981" />
+              <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 flex-1 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none">
+                <View className="bg-emerald-50 dark:bg-emerald-950/40 w-12 h-12 rounded-full items-center justify-center mb-3">
+                  <TrendingUp size={24} color={theme === 'dark' ? '#6ee7b7' : '#059669'} />
                 </View>
-                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Ingresos del mes</Text>
+                <Text className="text-slate-400 dark:text-slate-500 text-xs mb-1">Ingresos del mes</Text>
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1" />
                 ) : (
-                  <Text className="text-emerald-500 font-bold text-lg">
+                  <Text className="text-emerald-500 dark:text-emerald-400 font-bold text-lg">
                     {formatCurrency(stats.income)}
                   </Text>
                 )}
               </View>
-              <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 flex-1 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700">
-                <View className="bg-rose-100 w-12 h-12 rounded-full items-center justify-center mb-3">
-                  <TrendingDown size={24} color="#f43f5e" />
+              <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 flex-1 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none">
+                <View className="bg-rose-50 dark:bg-rose-950/40 w-12 h-12 rounded-full items-center justify-center mb-3">
+                  <TrendingDown size={24} color={theme === 'dark' ? '#fb7185' : '#e11d48'} />
                 </View>
-                <Text className="text-slate-400 dark:text-gray-500 text-xs mb-1">Gastos del mes</Text>
+                <Text className="text-slate-400 dark:text-slate-500 text-xs mb-1">Gastos del mes</Text>
                 {isLoading ? (
                   <View className="h-6 w-20 bg-slate-200 dark:bg-slate-750 rounded my-1" />
                 ) : (
-                  <Text className="text-rose-500 font-bold text-lg">
+                  <Text className="text-rose-500 dark:text-rose-400 font-bold text-lg">
                     {formatCurrency(stats.expenses)}
                   </Text>
                 )}
@@ -216,26 +205,27 @@ export default function StatsScreen() {
                 ['Mayor gasto', formatCurrency(stats.largestExpense)],
                 ['Promedio diario', formatCurrency(stats.averageDailyExpense)],
               ].map(([label, value]) => (
-                <View key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 min-w-[30%] flex-1 border border-slate-100 dark:border-gray-700">
-                  <Text className="text-slate-400 text-xs mb-1">{label}</Text>
-                  <Text className="text-slate-800 dark:text-gray-100 font-bold">{value}</Text>
+                <View key={label} className="bg-white dark:bg-[#121f33] rounded-2xl p-4 min-w-[30%] flex-1 border border-slate-100 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none">
+                  <Text className="text-slate-400 dark:text-slate-500 text-xs mb-1">{label}</Text>
+                  <Text className="text-slate-800 dark:text-slate-100 font-bold">{value}</Text>
                 </View>
               ))}
             </View>
 
             {isLoading ? (
-              <View className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center min-h-[220px] justify-center">
-                <View className="w-40 h-40 rounded-full bg-slate-200 dark:bg-slate-700" />
+              <View className="bg-white dark:bg-[#121f33] rounded-2xl p-6 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-6 items-center min-h-[220px] justify-center">
+                <View className="w-40 h-40 rounded-full bg-slate-100 dark:bg-[#1d2d44]" />
               </View>
             ) : (
               <>
                 {stats.balancePieData.length > 0 && (
-                  <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
-                    <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Balance general</Text>
+                  <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-6 items-center">
+                    <Text className="text-slate-800 dark:text-white text-lg font-bold mb-4">Balance general</Text>
                     <ChartKitPieChart
                       data={stats.balancePieData.map((item) => ({
                         ...item,
                         name: `${item.name}: ${formatCurrency(item.value)}`,
+                        legendFontColor: theme === 'dark' ? '#cbd5e1' : '#334155',
                       }))}
                       width={Dimensions.get('window').width - 72}
                       height={180}
@@ -248,12 +238,13 @@ export default function StatsScreen() {
                 )}
 
                 {stats.pieData.length > 0 && (
-                  <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6 items-center">
-                    <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Distribucion de gastos</Text>
+                  <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-6 items-center">
+                    <Text className="text-slate-800 dark:text-white text-lg font-bold mb-4">Distribucion de gastos</Text>
                     <ChartKitPieChart
                       data={stats.pieData.map((item) => ({
                         ...item,
                         name: `${item.name}: ${formatCurrency(item.value)}`,
+                        legendFontColor: theme === 'dark' ? '#cbd5e1' : '#334155',
                       }))}
                       width={Dimensions.get('window').width - 72}
                       height={200}
@@ -267,8 +258,8 @@ export default function StatsScreen() {
               </>
             )}
 
-            <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Presupuestos por categoria</Text>
-            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6">
+            <Text className="text-slate-800 dark:text-white text-lg font-bold mb-4">Presupuestos por categoria</Text>
+            <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-6">
               {isLoading ? (
                 [1, 2, 3].map((i) => (
                   <View key={i} className="flex-row items-center justify-between mb-4 opacity-60">
@@ -331,9 +322,8 @@ export default function StatsScreen() {
                         <View className="mt-2">
                           <View className="flex-row items-center gap-2">
                             <TextInput
-                              className={`flex-1 bg-slate-50 dark:bg-gray-700 border rounded-lg px-3 py-2 text-slate-800 dark:text-gray-100 text-base ${
-                                budgetError ? 'border-rose-400' : 'border-slate-200 dark:border-gray-600'
-                              }`}
+                              className={`flex-1 bg-slate-50 dark:bg-[#1b2a40] border rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 text-base ${budgetError ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700'
+                                }`}
                               placeholder="Monto límite"
                               placeholderTextColor="#94a3b8"
                               keyboardType="decimal-pad"
@@ -345,19 +335,19 @@ export default function StatsScreen() {
                               autoFocus
                             />
                             <TouchableOpacity
-                              className="bg-[#0f172a] px-4 py-2 rounded-lg"
+                              className="bg-slate-900 dark:bg-slate-200 px-4 py-2 rounded-lg"
                               onPress={() => handleSetBudget(catName)}
                             >
-                              <Text className="text-white font-semibold">OK</Text>
+                              <Text className="text-white dark:text-slate-950 font-semibold">OK</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                              className="bg-slate-200 dark:bg-gray-600 px-4 py-2 rounded-lg"
+                              className="bg-slate-200 dark:bg-slate-750 px-4 py-2 rounded-lg"
                               onPress={() => {
                                 setEditingBudget(null);
                                 setBudgetError('');
                               }}
                             >
-                              <Text className="text-slate-600 dark:text-gray-300 font-semibold">X</Text>
+                              <Text className="text-slate-600 dark:text-slate-300 font-semibold">X</Text>
                             </TouchableOpacity>
                           </View>
                           {budgetError ? (
@@ -371,8 +361,8 @@ export default function StatsScreen() {
               )}
             </View>
 
-            <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Gastos por categoria</Text>
-            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-6">
+            <Text className="text-slate-800 dark:text-white text-lg font-bold mb-4">Gastos por categoria</Text>
+            <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-6">
               {isLoading ? (
                 [1, 2, 3].map((i) => (
                   <View key={i} className="mb-4 opacity-60">
@@ -397,7 +387,7 @@ export default function StatsScreen() {
                 stats.expensesByCategory.map(([categoryName, amount]) => {
                   const category = getCategoryConfig(
                     categories.find((entry) => entry.name === categoryName) ||
-                      categoryName
+                    categoryName
                   );
                   const Icon = category.icon;
                   const widthPercent = `${Math.max((amount / maxCategoryExpense) * 100, 8)}%` as `${number}%`;
@@ -424,8 +414,8 @@ export default function StatsScreen() {
               )}
             </View>
 
-            <Text className="text-slate-800 dark:text-gray-100 text-lg font-bold mb-4">Movimientos recientes</Text>
-            <View className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm shadow-slate-200 dark:shadow-none dark:border dark:border-gray-700 mb-10">
+            <Text className="text-slate-800 dark:text-white text-lg font-bold mb-4">Movimientos recientes</Text>
+            <View className="bg-white dark:bg-[#121f33] rounded-2xl p-4 border border-slate-200/70 dark:border-slate-800/80 shadow-sm shadow-slate-100 dark:shadow-none mb-10">
               {isLoading ? (
                 [1, 2, 3].map((i) => (
                   <View key={i} className="flex-row items-center justify-between py-3 border-b border-slate-100 dark:border-gray-700 opacity-60">
@@ -486,7 +476,7 @@ export default function StatsScreen() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -497,6 +487,6 @@ export default function StatsScreen() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </SidebarLayout>
+    </>
   );
 }

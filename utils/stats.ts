@@ -41,9 +41,9 @@ export function calculateStats<T extends StatsTransaction>(
     },
     {}
   );
-  const sortedCategories = Object.entries(expensesByCategory).sort(
-    (a, b) => b[1] - a[1]
-  );
+  const sortedCategories = Object.entries(expensesByCategory)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1]);
 
   const pieData = sortedCategories.map(([name, value], index) => ({
     name,

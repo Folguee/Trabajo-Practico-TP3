@@ -2,43 +2,20 @@ import {
   View,
   Text,
   TouchableOpacity,
-  BackHandler,
-  Platform,
-  Alert,
   ScrollView,
   Image,
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { WalletCards, X } from 'lucide-react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WalletCards } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const BG_IMG = require('../assets/fondo-finanzas.png');
 
-const handleClose = () => {
-  if (Platform.OS === 'android') {
-    BackHandler.exitApp();
-  } else if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.open('', '_self');
-    window.close();
-    setTimeout(() => {
-      Alert.alert(
-        'Cerrar aplicación',
-        'Si la pestaña no se cerró, cerrala manualmente. Para detener el servidor presioná Ctrl+C en la terminal donde corriste "npx expo start".'
-      );
-    }, 500);
-  } else {
-    Alert.alert('Cerrar aplicación', 'Para cerrar la app desliza hacia arriba y elimínala.');
-  }
-};
-
 export default function Index() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const insets = useSafeAreaInsets();
-
-  const topOffset = Platform.OS === 'web' ? 20 : Math.max(insets.top, 16);
 
   return (
     <View className="flex-1 bg-slate-950">
@@ -75,22 +52,6 @@ export default function Index() {
         />
       </View>
 
-      {/* Botón de cerrar con ubicación segura adaptable */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          top: topOffset,
-          right: 20,
-          zIndex: 50,
-        }}
-        className="w-11 h-11 rounded-full items-center justify-center bg-white/80 active:bg-white shadow-md"
-        onPress={handleClose}
-        accessibilityRole="button"
-        accessibilityLabel="Cerrar aplicación"
-      >
-        <X size={20} color="#0f172a" />
-      </TouchableOpacity>
-
       <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
         <ScrollView
           contentContainerStyle={{
@@ -104,7 +65,7 @@ export default function Index() {
         >
           {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop/Windows) se muestra en dos columnas */}
           <View className="w-full max-w-6xl px-6 py-12 md:py-20 flex-col md:flex-row md:items-center md:justify-between md:gap-12">
-            
+
             {/* Columna Izquierda: Mensaje de Bienvenida (Hero) */}
             <View className="w-full md:w-1/2 items-center md:items-start mb-10 md:mb-0">
               <Text className="text-white text-4xl md:text-6xl font-extrabold text-center md:text-left tracking-tight leading-tight">
@@ -118,7 +79,7 @@ export default function Index() {
             {/* Columna Derecha: Tarjeta de Acciones (Diseño blanco similar a Login) */}
             <View className="w-full md:w-[420px] items-center">
               <View className="w-full bg-white dark:bg-gray-800 border border-slate-200/80 dark:border-gray-700 rounded-3xl px-8 py-10 items-center shadow-2xl">
-                
+
                 {/* Icono decorativo con fondo oscuro como el Login */}
                 <View className="bg-[#0f172a] w-16 h-16 rounded-2xl items-center justify-center mb-6 shadow-lg shadow-slate-900/20">
                   <WalletCards size={isMobile ? 32 : 36} color="white" />
