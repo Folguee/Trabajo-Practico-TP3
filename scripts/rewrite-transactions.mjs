@@ -139,6 +139,14 @@ function randomRecentDate(monthsBack = 4) {
   return new Date(ts);
 }
 
+function randomThisMonthDate() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  // Hasta hoy (no fechas futuras dentro del mes)
+  const ts = randInt(start, now.getTime());
+  return new Date(ts);
+}
+
 function makeTx(tpl, type, categoriesByName, date) {
   const category = categoriesByName[tpl.category];
   const amount = roundTo(randInt(tpl.min, tpl.max), 100);
@@ -177,6 +185,40 @@ function buildNewTransactions(categoriesByName, count) {
     const tpl = pick(EXPENSE_TEMPLATES);
     if (!categoriesByName[tpl.category]) continue;
     result.push(makeTx(tpl, 'expense', categoriesByName, randomRecentDate()));
+  }
+
+  result.sort((a, b) => b.date.getTime() - a.date.getTime());
+  return result;
+}
+
+function buildThisMonthTransactions(categoriesByName) {
+  const result = [];
+
+  // Un ingreso (sueldo) con fecha del 1 de este mes.
+  const incomeTpl = INCOME_TEMPLATES[0];
+  if (categoriesByName[incomeTpl.category]) {
+    const date = new Date();
+    date.setDate(1);
+    result.push(makeTx(incomeTpl, 'income', categoriesByName, date));
+  }
+
+  // Al menos un gasto por cada categoria de gasto disponible este mes.
+  const expenseCategories = [
+    ...new Set(EXPENSE_TEMPLATES.map((t) => t.category)),
+  ];
+
+  for (const categoryName of expenseCategories) {
+    if (!categoriesByName[categoryName]) continue;
+    const pool = EXPENSE_TEMPLATES.filter((t) => t.category === categoryName);
+    const tpl = pick(pool);
+    result.push(makeTx(tpl, 'expense', categoriesByName, randomThisMonthDate()));
+  }
+
+  // Unos cuantos gastos extra variados para dar volumen al mes.
+  for (let i = 0; i < 6; i += 1) {
+    const tpl = pick(EXPENSE_TEMPLATES);
+    if (!categoriesByName[tpl.category]) continue;
+    result.push(makeTx(tpl, 'expense', categoriesByName, randomThisMonthDate()));
   }
 
   result.sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -345,11 +387,20 @@ async function main() {
   }
 
   const newTxs = buildNewTransactions(categoriesByName, Math.max(personal.length, 18));
+  const thisMonthTxs = buildThisMonthTransactions(categoriesByName);
   const newSharedTxs = buildSharedTransactions(categoriesByName, currentUser, publicUsers);
 
   console.log(`--- Se BORRARAN ${personal.length} transacciones personales ---`);
   console.log(`--- Se CREARAN ${newTxs.length} transacciones nuevas: ---`);
   newTxs.forEach((t) => {
+    const tag = t.type === 'income' ? '[+]' : '[-]';
+    console.log(
+      `  ${tag} $${t.amount} | "${t.title}" (${t.categoryName}) | ${t.date.toLocaleDateString('es-AR')}`
+    );
+  });
+
+  console.log(`--- Se CREARAN ${thisMonthTxs.length} transacciones de ESTE MES (todas las categorias): ---`);
+  thisMonthTxs.forEach((t) => {
     const tag = t.type === 'income' ? '[+]' : '[-]';
     console.log(
       `  ${tag} $${t.amount} | "${t.title}" (${t.categoryName}) | ${t.date.toLocaleDateString('es-AR')}`
@@ -379,7 +430,7 @@ async function main() {
     console.log(`Borrada ${tx.id}`);
   }
 
-  for (const tx of newTxs) {
+  for (const tx of [...newTxs, ...thisMonthTxs]) {
     await addDoc(collection(db, 'transactions'), {
       type: tx.type,
       amount: tx.amount,
