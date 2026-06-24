@@ -704,7 +704,7 @@ export default function TransactionFormSheet({
         onPress={onClose}
       >
         <Pressable
-          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border flex flex-col"
+          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
           onPress={(e) => e.stopPropagation()}
         >
           {/* Barra superior de arrastre */}
@@ -715,7 +715,7 @@ export default function TransactionFormSheet({
               <ActivityIndicator size="large" color="#0f172a" />
             </View>
           ) : (
-            <View className="w-full flex-1 flex flex-col">
+            <View className="w-full">
               {/* Encabezado */}
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-slate-800 dark:text-slate-100 text-xl font-bold">
@@ -729,7 +729,7 @@ export default function TransactionFormSheet({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} className="flex-1 mb-4">
+              <ScrollView showsVerticalScrollIndicator={false} className="mb-4">
                 {/* Comprobante Adjunto (arriba para auto-completar) */}
                 <View
                   className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-5 ${
