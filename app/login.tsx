@@ -23,10 +23,24 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const passwordRef = useRef<any>(null);
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema) as any,
     defaultValues: { email: '', password: '' },
   });
+
+  const handleQuickLogin = async () => {
+    const quickEmail = 'juan@gmail.com';
+    const quickPassword = 'Hola123!';
+
+    setValue('email', quickEmail, { shouldValidate: true });
+    setValue('password', quickPassword, { shouldValidate: true });
+    await onSubmit({ email: quickEmail, password: quickPassword });
+  };
 
   const onSubmit = async (data: LoginForm) => {
     setErrorMessage(null);
@@ -201,6 +215,16 @@ export default function Login() {
                 >
                   <Text className="text-white font-bold text-lg">
                     {isSubmitting ? 'Ingresando...' : 'Iniciar Sesión'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="w-full mt-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3.5"
+                  onPress={handleQuickLogin}
+                  disabled={isSubmitting || isGoogleSubmitting}
+                >
+                  <Text className="text-center text-indigo-700 font-semibold">
+                    Inicio rápido: juan@gmail.com / Hola123!
                   </Text>
                 </TouchableOpacity>
 

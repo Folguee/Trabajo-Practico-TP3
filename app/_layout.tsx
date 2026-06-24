@@ -6,7 +6,7 @@ BACKEND INIT: Escucha cambios de autenticación del servicio backend
 */
 
 import "../global.css";
-import { router, Stack, useSegments } from "expo-router";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { onAuthChange } from "../services/auth.service";
@@ -16,9 +16,7 @@ import { useThemeStore } from "../store/themeStore";
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
-  const user = useAuthStore((state) => state.user);
   const theme = useThemeStore((state) => state.theme);
-  const segments = useSegments();
 
   useEffect(() => {
     const unsub = onAuthChange((firebaseUser) => {
@@ -35,22 +33,6 @@ export default function RootLayout() {
       clearTimeout(timeout);
     };
   }, []);
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    const firstSegment = segments[0];
-    const publicRoute =
-      !firstSegment ||
-      firstSegment === 'login' ||
-      firstSegment === 'register';
-
-    if (!user && !publicRoute) {
-      router.replace('/login');
-    } else if (user && publicRoute) {
-      router.replace('/dashboard');
-    }
-  }, [isReady, segments, user]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }} className={theme === 'dark' ? 'dark' : ''}>

@@ -3,7 +3,6 @@ module.exports = function (api) {
   return {
     presets: [
       ["babel-preset-expo", { jsxImportSource: "nativewind" }],
-      "nativewind/babel",
     ],
     // Reanimated v4 usa el plugin de worklets. DEBE ir al final de la lista.
     // Sin él, Reanimated no inicializa y las animaciones (p. ej. `animate-pulse`

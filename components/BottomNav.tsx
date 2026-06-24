@@ -1,5 +1,4 @@
 import { View, Text, TouchableOpacity } from 'react-native';
-import { router } from 'expo-router';
 import { BarChart3, Download, Home, List, User } from 'lucide-react-native';
 
 export type TabKey = 'dashboard' | 'transacciones' | 'stats' | 'exportar' | 'perfil';
@@ -12,7 +11,13 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof Home; route: string
     { key: 'perfil', label: 'Perfil', icon: User, route: '/perfil' },
 ];
 
-export default function BottomNav({ active }: { active: TabKey }) {
+export default function BottomNav({
+    active,
+    onNavigate,
+}: {
+    active: TabKey;
+    onNavigate: (route: string) => void;
+}) {
     return (
         <View className="bg-white border-t border-slate-200 px-4 py-3 flex-row items-center justify-between">
             {tabs.map((tab) => {
@@ -23,7 +28,7 @@ export default function BottomNav({ active }: { active: TabKey }) {
                     <TouchableOpacity
                         key={tab.key}
                         className="flex-1 items-center"
-                        onPress={() => router.push(tab.route)}
+                        onPress={() => onNavigate(tab.route)}
                     >
                         <View
                             className={`w-12 h-12 rounded-2xl items-center justify-center ${isActive ? 'bg-slate-950' : 'bg-slate-100'

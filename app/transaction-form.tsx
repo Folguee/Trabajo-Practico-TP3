@@ -1,31 +1,14 @@
-import { useState } from 'react';
-import { View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-
-const getParam = (value: string | string[] | undefined) =>
-  Array.isArray(value) ? value[0] : value;
+import { View, Text } from 'react-native';
 
 export default function TransactionFormScreen() {
-  const params = useLocalSearchParams();
-  const [visible, setVisible] = useState(true);
-  const id = getParam(params.id);
-  const initialType = getParam(params.type) === 'income' ? 'income' : 'expense';
-
-  const close = () => {
-    setVisible(false);
-    router.replace('/transacciones');
-  };
-
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <TransactionFormSheet
-        visible={visible}
-        transactionId={id ?? null}
-        initialType={initialType}
-        onClose={close}
-        onSaveSuccess={() => undefined}
-      />
+    <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-950 px-6">
+      <Text className="text-slate-900 dark:text-slate-100 text-lg font-semibold text-center">
+        Formulario temporalmente deshabilitado
+      </Text>
+      <Text className="text-slate-500 dark:text-slate-400 text-center mt-2">
+        Esta pantalla se reactivará cuando terminemos de estabilizar la navegación.
+      </Text>
     </View>
   );
 }

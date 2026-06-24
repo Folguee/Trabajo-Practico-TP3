@@ -72,6 +72,15 @@ export default function TransactionFormSheet({
 }: TransactionFormSheetProps) {
   const insets = useSafeAreaInsets();
   const isEditing = Boolean(transactionId);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [title, setTitle] = useState('');
@@ -108,12 +117,16 @@ export default function TransactionFormSheet({
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const loadPublicUsers = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setIsLoadingUsers(true);
     setUsersError('');
     try {
-      setPublicUsers(await getPublicUsers());
+      const users = await getPublicUsers();
+      if (!isMountedRef.current) return;
+      setPublicUsers(users);
     } catch (error) {
       console.error('Error cargando directorio publico:', error);
+      if (!isMountedRef.current) return;
       setPublicUsers([]);
       setUsersError(
         error instanceof Error
@@ -121,15 +134,19 @@ export default function TransactionFormSheet({
           : 'No se pudo cargar la lista de usuarios'
       );
     } finally {
-      setIsLoadingUsers(false);
+      if (isMountedRef.current) {
+        setIsLoadingUsers(false);
+      }
     }
   }, []);
 
   // Cargar transacción si estamos editando
   const loadTransaction = useCallback(async () => {
+    if (!isMountedRef.current) return;
     setIsLoading(true);
     try {
       const loadedCategories = await getCategories();
+      if (!isMountedRef.current) return;
       setCategories(loadedCategories);
       await loadPublicUsers();
       const currentUser = auth.currentUser;
@@ -288,7 +305,9 @@ export default function TransactionFormSheet({
       console.error('Error cargando transacción:', error);
       Alert.alert('Error', 'No se pudo cargar el formulario.');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [initialType, transactionId, onClose, loadPublicUsers]);
 
