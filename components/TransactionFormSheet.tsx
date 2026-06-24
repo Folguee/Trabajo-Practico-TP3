@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -704,7 +705,8 @@ export default function TransactionFormSheet({
         onPress={onClose}
       >
         <Pressable
-          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 max-h-[85%] border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
+          className="bg-white dark:bg-slate-900 rounded-t-[36px] px-6 pb-8 pt-2 border-t border-slate-200 dark:border-slate-800 md:max-w-xl md:w-full md:rounded-3xl md:shadow-2xl md:border"
+          style={{ maxHeight: Dimensions.get('window').height * 0.85 }}
           onPress={(e) => e.stopPropagation()}
         >
           {/* Barra superior de arrastre */}
@@ -729,7 +731,12 @@ export default function TransactionFormSheet({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} className="mb-4">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                className="mb-4"
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
+              >
                 {/* Comprobante Adjunto (arriba para auto-completar) */}
                 <View
                   className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm mb-5 ${
@@ -1233,21 +1240,22 @@ export default function TransactionFormSheet({
                     onChangeText={setNote}
                   />
                 </View>
-              </ScrollView>
 
-              {/* Botón de Guardado */}
-              <TouchableOpacity
-                className={`rounded-xl p-4 flex-row items-center justify-center gap-2 ${
-                  isSaving ? 'bg-slate-400' : 'bg-[#0f172a] dark:bg-indigo-600 active:opacity-95 shadow-md'
-                }`}
-                disabled={isSaving}
-                onPress={handleSave}
-              >
-                {isSaving ? <ActivityIndicator color="white" /> : <Check size={18} color="white" />}
-                <Text className="text-white font-bold text-base">
-                  {isSaving ? 'Guardando...' : 'Guardar Movimiento'}
-                </Text>
-              </TouchableOpacity>
+                {/* Botón de Guardado */}
+                <TouchableOpacity
+                  className={`rounded-xl p-4 flex-row items-center justify-center gap-2 mt-2 ${
+                    isSaving ? 'bg-slate-400' : 'bg-[#0f172a] dark:bg-indigo-600 active:opacity-95 shadow-md'
+                  }`}
+                  style={{ marginBottom: Math.max(insets.bottom, 16) }}
+                  disabled={isSaving}
+                  onPress={handleSave}
+                >
+                  {isSaving ? <ActivityIndicator color="white" /> : <Check size={18} color="white" />}
+                  <Text className="text-white font-bold text-base">
+                    {isSaving ? 'Guardando...' : 'Guardar Movimiento'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
           )}
         </Pressable>

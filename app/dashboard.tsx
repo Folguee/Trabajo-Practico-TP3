@@ -18,6 +18,7 @@ import {
 } from 'lucide-react-native';
 import TransactionFormSheet from '../components/TransactionFormSheet';
 import TransactionDetailSheet from '../components/TransactionDetailSheet';
+import SidebarLayout from '../components/SidebarLayout';
 import { formatCurrency } from '../utils/money';
 import { formatDisplayDate } from '../utils/date';
 import { useAuthStore } from '../store/authStore';
@@ -186,8 +187,9 @@ export default function Dashboard() {
   );
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+    <SidebarLayout active="dashboard">
+      <View className="flex-1 bg-slate-50 dark:bg-slate-950">
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <View className="bg-[#0f172a] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
             <View className="flex-row items-center justify-between">
               <View>
@@ -312,6 +314,7 @@ export default function Dashboard() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </View>
+      </View>
+    </SidebarLayout>
   );
 }
