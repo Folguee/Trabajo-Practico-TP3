@@ -1,29 +1,55 @@
-
 /// <reference types="nativewind/types" />
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Controller } from 'react-hook-form';
 import { Wallet, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AuthBackground from '../../components/AuthBackground';
-import { useLoginForm } from '../../hooks/useLoginForm';
+import { type LoginForm, useLoginForm } from '../../hooks/useLoginForm';
 
 export default function Login() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const passwordRef = useRef<TextInput | null>(null);
+
   const {
     control,
     handleSubmit,
+    setValue,
     errors,
     isSubmitting,
-    showPassword,
-    setShowPassword,
     errorMessage,
     setErrorMessage,
-    isGoogleSubmitting,
-    setIsGoogleSubmitting,
-    passwordRef,
-    handleQuickLogin,
     onSubmit,
   } = useLoginForm();
+
+  const handleEmailLogin = async (data: LoginForm) => {
+    const success = await onSubmit(data);
+
+    if (success) {
+      router.replace('/dashboard');
+    }
+  };
+
+  const handleQuickLogin = async () => {
+    const data: LoginForm = { email: 'juan@gmail.com', password: 'Hola123!' };
+
+    setValue('email', data.email, { shouldValidate: true });
+    setValue('password', data.password, { shouldValidate: true });
+
+    if (await onSubmit(data)) {
+      router.replace('/dashboard');
+    }
+  };
 
   return (
     <View className="flex-1 bg-slate-950">
@@ -45,7 +71,6 @@ export default function Login() {
         >
           {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop) se muestra en dos columnas */}
           <View className="w-full max-w-6xl px-6 py-12 md:py-20 flex-col md:flex-row md:items-center md:justify-between md:gap-12">
-            
             {/* Columna Izquierda: Mensaje de Bienvenida (Solo visible en escritorio) */}
             <View className="hidden md:flex md:w-1/2 items-start">
               <Text className="text-white md:text-6xl font-extrabold text-left tracking-tight leading-tight">
@@ -72,8 +97,12 @@ export default function Login() {
                 <View className="bg-[#0f172a] w-14 h-14 rounded-2xl items-center justify-center mb-4 shadow-lg shadow-slate-900/20">
                   <Wallet size={28} color="white" />
                 </View>
-                <Text className="text-2xl font-bold text-center text-slate-800 dark:text-gray-100 mb-1">Bienvenido</Text>
-                <Text className="text-sm text-slate-500 dark:text-gray-400 text-center mb-6">Inicia sesión para continuar</Text>
+                <Text className="text-2xl font-bold text-center text-slate-800 dark:text-gray-100 mb-1">
+                  Bienvenido
+                </Text>
+                <Text className="text-sm text-slate-500 dark:text-gray-400 text-center mb-6">
+                  Inicia sesión para continuar
+                </Text>
 
                 {errorMessage && (
                   <View className="w-full flex-row items-center bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4">
@@ -85,7 +114,9 @@ export default function Login() {
                 )}
 
                 <View className="w-full mb-4">
-                  <Text className="text-slate-700 dark:text-gray-300 font-medium mb-1.5 ml-1 text-sm">Email</Text>
+                  <Text className="text-slate-700 dark:text-gray-300 font-medium mb-1.5 ml-1 text-sm">
+                    Email
+                  </Text>
                   <Controller
                     control={control}
                     name="email"
@@ -105,11 +136,15 @@ export default function Login() {
                       />
                     )}
                   />
-                  {errors.email && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.email.message}</Text>}
+                  {errors.email && (
+                    <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.email.message}</Text>
+                  )}
                 </View>
 
                 <View className="w-full mb-6">
-                  <Text className="text-slate-700 dark:text-gray-300 font-medium mb-1.5 ml-1 text-sm">Contraseña</Text>
+                  <Text className="text-slate-700 dark:text-gray-300 font-medium mb-1.5 ml-1 text-sm">
+                    Contraseña
+                  </Text>
                   <Controller
                     control={control}
                     name="password"
@@ -125,11 +160,11 @@ export default function Login() {
                           onChangeText={onChange}
                           value={value}
                           returnKeyType="done"
-                          onSubmitEditing={handleSubmit(onSubmit)}
+                          onSubmitEditing={handleSubmit(handleEmailLogin)}
                         />
                         <TouchableOpacity
                           className="absolute right-4"
-                          onPress={() => setShowPassword(!showPassword)}
+                          onPress={() => setShowPassword((prev) => !prev)}
                         >
                           {showPassword ? (
                             <EyeOff size={20} color="#64748b" />
@@ -140,12 +175,16 @@ export default function Login() {
                       </View>
                     )}
                   />
-                  {errors.password && <Text className="text-rose-500 text-sm mt-1 ml-1">{errors.password.message}</Text>}
+                  {errors.password && (
+                    <Text className="text-rose-500 text-sm mt-1 ml-1">
+                      {errors.password.message}
+                    </Text>
+                  )}
                 </View>
 
                 <TouchableOpacity
                   className="bg-[#0f172a] active:bg-slate-800 py-3.5 rounded-xl items-center justify-center w-full mt-2 disabled:opacity-50 shadow-md"
-                  onPress={handleSubmit(onSubmit)}
+                  onPress={handleSubmit(handleEmailLogin)}
                   disabled={isSubmitting || isGoogleSubmitting}
                 >
                   <Text className="text-white font-bold text-lg">
@@ -172,14 +211,15 @@ export default function Login() {
                 />
 
                 <View className="flex-row justify-center mt-6">
-                  <Text className="text-slate-500 dark:text-gray-400 font-medium text-sm">¿No tienes cuenta? </Text>
+                  <Text className="text-slate-500 dark:text-gray-400 font-medium text-sm">
+                    ¿No tienes cuenta?{' '}
+                  </Text>
                   <TouchableOpacity onPress={() => router.push('/register')}>
                     <Text className="text-indigo-600 font-bold text-sm">Regístrate</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
