@@ -1,89 +1,28 @@
-import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView, Image } from 'react-native';
+/// <reference types="nativewind/types" />
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { register as registerUser } from '../services/auth.service';
+import { Controller } from 'react-hook-form';
 import { UserPlus, Eye, EyeOff } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const registerSchema = z.object({
-  name: z.string().min(5, 'El nombre debe tener al menos 5 caracteres'),
-  telefono: z.string().min(8, 'El teléfono es obligatorio'),
-  email: z.string().email('Ingrese un email valido'),
-  password: z
-    .string()
-    .min(5, 'La contraseña debe tener al menos 5 caracteres')
-    .regex(/[A-Z]/, 'Debe tener al menos una letra mayúscula')
-    .regex(/[0-9]/, 'Debe tener al menos un número'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-});
-
-type RegisterForm = z.infer<typeof registerSchema>;
-
-const BG_IMG = require('../assets/fondo-finanzas.png');
+import AuthBackground from '../../components/AuthBackground';
+import { useRegisterForm } from '../../hooks/useRegisterForm';
 
 export default function Register() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema) as any,
-    defaultValues: { name: '', telefono: '', email: '', password: '', confirmPassword: '' },
-  });
-
-  const onSubmit = async (data: RegisterForm) => {
-    try {
-      await registerUser(data.name, data.email, data.password, data.telefono);
-      router.replace('/dashboard');
-    } catch (error: any) {
-      let message = 'Error al crear la cuenta';
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'Este email ya esta registrado';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'La contraseña no cumple los requisitos';
-      }
-      Alert.alert('Error', message);
-    }
-  };
+  const {
+    control,
+    handleSubmit,
+    errors,
+    isSubmitting,
+    showPassword,
+    setShowPassword,
+    showConfirmPassword,
+    setShowConfirmPassword,
+    onSubmit,
+  } = useRegisterForm();
 
   return (
     <View className="flex-1 bg-slate-950">
-      {/* Contenedor de fondo con posicionamiento fixed en web para evitar que se desplace al hacer scroll */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: -1,
-        }}
-      >
-        <Image
-          source={BG_IMG}
-          style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
-        />
-        {/* Gradiente oscuro superior para garantizar el contraste y legibilidad */}
-        <LinearGradient
-          colors={[
-            'rgba(2, 6, 23, 0.45)',
-            'rgba(2, 6, 23, 0.75)',
-            '#020617'
-          ]}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        />
-      </View>
+      {/* Componente de Fondo Desacoplado */}
+      <AuthBackground />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -98,9 +37,9 @@ export default function Register() {
           showsVerticalScrollIndicator={false}
           className="w-full"
         >
-          {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop/Windows) se muestra en dos columnas */}
+          {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop) se muestra en dos columnas */}
           <View className="w-full max-w-6xl px-6 py-12 md:py-20 flex-col md:flex-row md:items-center md:justify-between md:gap-12">
-            
+
             {/* Columna Izquierda: Mensaje de Bienvenida (Solo visible en escritorio) */}
             <View className="hidden md:flex md:w-1/2 items-start">
               <Text className="text-white md:text-6xl font-extrabold text-left tracking-tight leading-tight">

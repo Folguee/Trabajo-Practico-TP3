@@ -1,99 +1,34 @@
-import { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ScrollView } from 'react-native';
+
+/// <reference types="nativewind/types" />
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { login } from '../services/auth.service';
+import { Controller } from 'react-hook-form';
 import { Wallet, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import GoogleSignInButton from '../components/GoogleSignInButton';
-
-const loginSchema = z.object({
-  email: z.string().email('Ingrese un email valido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
-
-const BG_IMG = require('../assets/fondo-finanzas.png');
+import GoogleSignInButton from '../../components/GoogleSignInButton';
+import AuthBackground from '../../components/AuthBackground';
+import { useLoginForm } from '../../hooks/useLoginForm';
 
 export default function Login() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
-  const passwordRef = useRef<any>(null);
   const {
     control,
     handleSubmit,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema) as any,
-    defaultValues: { email: '', password: '' },
-  });
-
-  const handleQuickLogin = async () => {
-    const quickEmail = 'juan@gmail.com';
-    const quickPassword = 'Hola123!';
-
-    setValue('email', quickEmail, { shouldValidate: true });
-    setValue('password', quickPassword, { shouldValidate: true });
-    await onSubmit({ email: quickEmail, password: quickPassword });
-  };
-
-  const onSubmit = async (data: LoginForm) => {
-    setErrorMessage(null);
-    try {
-      await login(data.email, data.password);
-      router.replace('/dashboard');
-    } catch (error: any) {
-      let message = 'Error al iniciar sesión';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        message = 'Email o contraseña incorrectos';
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'Email inválido';
-      } else if (error.message) {
-        message = error.message;
-      }
-      setErrorMessage(message);
-    }
-  };
+    errors,
+    isSubmitting,
+    showPassword,
+    setShowPassword,
+    errorMessage,
+    setErrorMessage,
+    isGoogleSubmitting,
+    setIsGoogleSubmitting,
+    passwordRef,
+    handleQuickLogin,
+    onSubmit,
+  } = useLoginForm();
 
   return (
     <View className="flex-1 bg-slate-950">
-      {/* Contenedor de fondo con posicionamiento fixed en web para evitar que se desplace al hacer scroll */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: -1,
-        }}
-      >
-        <Image
-          source={BG_IMG}
-          style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
-        />
-        {/* Gradiente oscuro superior para garantizar el contraste y legibilidad */}
-        <LinearGradient
-          colors={[
-            'rgba(2, 6, 23, 0.45)',
-            'rgba(2, 6, 23, 0.75)',
-            '#020617'
-          ]}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        />
-      </View>
+      {/* Componente de Fondo Desacoplado */}
+      <AuthBackground />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -108,7 +43,7 @@ export default function Login() {
           showsVerticalScrollIndicator={false}
           className="w-full"
         >
-          {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop/Windows) se muestra en dos columnas */}
+          {/* Contenedor responsivo: En móviles se apila verticalmente, en pantallas grandes (desktop) se muestra en dos columnas */}
           <View className="w-full max-w-6xl px-6 py-12 md:py-20 flex-col md:flex-row md:items-center md:justify-between md:gap-12">
             
             {/* Columna Izquierda: Mensaje de Bienvenida (Solo visible en escritorio) */}
@@ -228,7 +163,7 @@ export default function Login() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Login con Google (web: popup; mobile: OAuth nativo si hay Client IDs) */}
+                {/* Login con Google */}
                 <GoogleSignInButton
                   disabled={isSubmitting || isGoogleSubmitting}
                   isSubmitting={isGoogleSubmitting}
@@ -237,7 +172,6 @@ export default function Login() {
                 />
 
                 <View className="flex-row justify-center mt-6">
-
                   <Text className="text-slate-500 dark:text-gray-400 font-medium text-sm">¿No tienes cuenta? </Text>
                   <TouchableOpacity onPress={() => router.push('/register')}>
                     <Text className="text-indigo-600 font-bold text-sm">Regístrate</Text>

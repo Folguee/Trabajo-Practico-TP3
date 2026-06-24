@@ -7,8 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getTransactions, Transaction, deleteTransaction } from '../../services/transaction.service';
-import { getCategoryConfig } from '../../constants/transactions';
+import { deleteTransaction, Transaction } from '../../services/transaction.service';
 import {
   Plus,
   Wallet,
@@ -16,35 +15,25 @@ import {
   ArrowDownLeft,
   ChevronRight,
 } from 'lucide-react-native';
-import TransactionFormSheet from '../../components/TransactionFormSheet';
-import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import { TransactionFormSheet, TransactionDetailSheet, TransactionRow } from '../../components';
 import { formatCurrency } from '../../utils/money';
-import { formatDisplayDate } from '../../utils/date';
 import { useAuthStore } from '../../store/authStore';
 import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { useTransactions } from '../../hooks/useTransactions';
 
 export default function Dashboard() {
   const currentUser = useAuthStore((state) => state.user);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    transactions,
+    isLoading,
+    loadTransactions,
+  } = useTransactions();
+
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formTxId, setFormTxId] = useState<string | null>(null);
-
-  const loadTransactions = useCallback(async () => {
-    try {
-      setTransactions(await getTransactions());
-    } catch (error) {
-      Alert.alert(
-        'Error de conexion',
-        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const handleDeleteSelected = async () => {
     if (!selectedTx?.id) return;
@@ -107,8 +96,6 @@ export default function Dashboard() {
   const hasTransactions = transactions.length > 0;
 
   const handleNavigate = useCallback((route: string) => {
-    // replace (no push) para no apilar pestañas sobre la pestaña actual
-    // y mantener el nav compartido montado.
     router.replace(route as any);
   }, []);
 
@@ -135,41 +122,6 @@ export default function Dashboard() {
       </TouchableOpacity>
     </View>
   );
-
-  const renderRecentTransaction = (item: Transaction) => {
-    const category = getCategoryConfig(item.categoryName);
-    const Icon = category.icon;
-    const isExpense = item.type === 'expense' || item.type === 'shared';
-
-    return (
-      <TouchableOpacity
-        key={item.id}
-        className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm active:opacity-90"
-        onPress={() => {
-          setSelectedTx(item);
-          setIsDetailOpen(true);
-        }}
-      >
-        <View className="flex-row items-center gap-4 flex-1">
-          <View className={`${category.bgColor} w-11 h-11 rounded-full items-center justify-center`}>
-            <Icon size={20} color={category.iconColor} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-slate-800 dark:text-slate-100 font-semibold text-sm" numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{formatDisplayDate(item.date)}</Text>
-          </View>
-        </View>
-        <View className="items-end ml-3">
-          <Text className={`${isExpense ? 'text-rose-500' : 'text-emerald-500'} font-bold text-sm`}>
-            {formatCurrency(item.amount, { sign: isExpense ? 'negative' : 'positive' })}
-          </Text>
-          <Text className="text-slate-400 dark:text-slate-500 text-xs mt-1">{item.categoryName}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   const renderSkeletonTransaction = (key: number) => (
     <View key={key} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 rounded-2xl p-4 flex-row items-center justify-between mb-3 shadow-sm opacity-60">
@@ -277,7 +229,16 @@ export default function Dashboard() {
                   </TouchableOpacity>
                 </View>
 
-                {recentTransactions.map(renderRecentTransaction)}
+                {recentTransactions.map((item) => (
+                  <TransactionRow
+                    key={item.id}
+                    item={item}
+                    onPress={(tx) => {
+                      setSelectedTx(tx);
+                      setIsDetailOpen(true);
+                    }}
+                  />
+                ))}
 
                 <TouchableOpacity
                   onPress={() => handleNavigate('/exportar')}

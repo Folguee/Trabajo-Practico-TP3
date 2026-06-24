@@ -8,8 +8,8 @@
 
 ```
 INDEX (app/index.tsx)          ← Pantalla de inicio / landing
-  ├─ [Iniciar Sesión] ──> LOGIN (app/login.tsx)
-  ├─ [Registrarme] ────> REGISTER (app/register.tsx)
+  ├─ [Iniciar Sesión] ──> LOGIN (app/(auth)/login.tsx)
+  ├─ [Registrarme] ────> REGISTER (app/(auth)/register.tsx)
   └─ [X] ──────────────> Cierra la app
 
 LOGIN / REGISTER ──> DASHBOARD (app/(tabs)/dashboard.tsx)
@@ -25,11 +25,13 @@ LOGIN / REGISTER ──> DASHBOARD (app/(tabs)/dashboard.tsx)
                ├─ Exportar       (app/(tabs)/exportar.tsx)
                └─ Perfil + Cerrar Sesión (app/(tabs)/perfil.tsx)
 
-DASHBOARD ──> Transaction Form (app/transaction-form.tsx)
-           ──> Transaction Detail (app/transaction-detail.tsx)
-           ──> Exportar (app/(tabs)/exportar.tsx)
-TRANSACCIONES ──> Transaction Detail ──> Transaction Form / Exportar
-STATS ──> (todo interno, scroll + gráficos)
+El alta/edición de transacciones NO usa una ruta: se abre el bottom sheet
+`components/TransactionFormSheet.tsx` (inline en Dashboard/Transacciones/Stats).
+El detalle se abre con `components/TransactionDetailSheet.tsx`.
+
+DASHBOARD ──> TransactionDetailSheet ──> TransactionFormSheet / Exportar
+TRANSACCIONES ──> TransactionDetailSheet ──> TransactionFormSheet / Exportar
+STATS ──> (todo interno, scroll + gráficos) + bottom sheets
 PERFIL ──> (solo datos del usuario)
 ```
 
@@ -401,7 +403,12 @@ const creationDate = user?.metadata.creationTime
 
 ---
 
-## 9. `app/transaction-form.tsx` — Formulario de Transacciones
+## 9. `components/TransactionFormSheet.tsx` — Formulario de Transacciones
+
+> Es un **bottom sheet** (no una ruta). Se renderiza inline en Dashboard,
+> Transacciones y Stats, controlado por el estado `isFormOpen`. Recibe los
+> datos por props (`visible`, `transactionId`, `initialType`, `onClose`,
+> `onSaveSuccess`), no por parámetros de URL.
 
 ### ¿Qué hace?
 Formulario completo para crear/editar movimientos:
@@ -421,7 +428,7 @@ Formulario completo para crear/editar movimientos:
 ### Imports clave
 | Import | Tipo | ¿Para qué? |
 |--------|------|------------|
-| `useLocalSearchParams` de `expo-router` | Librería | Lee parámetros de la URL (`id`, `type`) |
+| Props (`transactionId`, `initialType`, etc.) | — | Sustituyen a los parámetros de URL; el sheet recibe todo por props |
 | `ImagePicker` de `expo-image-picker` | Librería | Acceso a la galería de fotos |
 | `Animated` de `react-native` | Librería | Animación de "shake" en fecha inválida |
 | `addTransaction`, `updateTransaction`, `getTransactionById` | Propia | CRUD de Firestore |
@@ -490,7 +497,7 @@ Validación: 400 + 300 * 2 = 1000 ✓
 
 ---
 
-## 10. `app/transaction-detail.tsx` — Detalle de Transacción
+## 10. `components/TransactionDetailSheet.tsx` — Detalle de Transacción
 
 ### ¿Qué hace?
 Muestra todos los datos de una transacción:
