@@ -19,28 +19,27 @@ import {
   Wallet,
 } from 'lucide-react-native';
 import { PieChart as ChartKitPieChart } from 'react-native-chart-kit';
-import SidebarLayout from '../components/SidebarLayout';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import TransactionFormSheet from '../components/TransactionFormSheet';
+import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import TransactionFormSheet from '../../components/TransactionFormSheet';
 import {
   getTransactions,
   Transaction,
   deleteTransaction,
-} from '../services/transaction.service';
-import { getCategoryConfig } from '../constants/transactions';
-import { useBudgetStore } from '../store/budgetStore';
-import { useAuthStore } from '../store/authStore';
-import { calculateStats } from '../utils/stats';
+} from '../../services/transaction.service';
+import { getCategoryConfig } from '../../constants/transactions';
+import { useBudgetStore } from '../../store/budgetStore';
+import { useAuthStore } from '../../store/authStore';
+import { calculateStats } from '../../utils/stats';
 import {
   formatCurrency,
   formatMoneyInput,
   validateMoneyInput,
-} from '../utils/money';
-import { formatDisplayDate } from '../utils/date';
-import { confirmDeleteTransaction } from '../utils/confirm';
-import { getCategories } from '../services/category.service';
-import type { Category } from '../types';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+} from '../../utils/money';
+import { formatDisplayDate } from '../../utils/date';
+import { confirmDeleteTransaction } from '../../utils/confirm';
+import { getCategories } from '../../services/category.service';
+import type { Category } from '../../types';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
 
 export default function StatsScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -145,7 +144,7 @@ export default function StatsScreen() {
   };
 
   return (
-    <SidebarLayout active="stats">
+    <>
       <View className="flex-1">
         <ScrollView
           className="flex-1"
@@ -486,7 +485,7 @@ export default function StatsScreen() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -497,6 +496,6 @@ export default function StatsScreen() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </SidebarLayout>
+    </>
   );
 }

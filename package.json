@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts services/tests/receipt-assets.test.ts"
+    "test:receipt:live": "set -a; . ./.env; set +a; RUN_LIVE_RECEIPT_TEST=true vitest run services/tests/receipt.integration.test.ts services/tests/receipt-assets.test.ts",
+    "adb:push:test-assets": "adb shell \"mkdir -p /sdcard/Download/ort-test-assets\" && adb push tests/assets/. /sdcard/Download/ort-test-assets/"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

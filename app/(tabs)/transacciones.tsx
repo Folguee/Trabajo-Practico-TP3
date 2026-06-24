@@ -16,14 +16,13 @@ import {
   Plus,
   Search,
 } from 'lucide-react-native';
-import SidebarLayout from '../components/SidebarLayout';
-import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
+import { getTransactions, Transaction, deleteTransaction } from '../../services/transaction.service';
 import {
   getCategoryConfig,
-} from '../constants/transactions';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import { formatCurrency } from '../utils/money';
+} from '../../constants/transactions';
+import TransactionFormSheet from '../../components/TransactionFormSheet';
+import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import { formatCurrency } from '../../utils/money';
 import {
   endOfDay,
   formatDateInput,
@@ -31,11 +30,11 @@ import {
   isInCurrentMonth,
   isSameDay,
   parseDateInput,
-} from '../utils/date';
-import { getCategories } from '../services/category.service';
-import type { Category } from '../types';
-import { useAuthStore } from '../store/authStore';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+} from '../../utils/date';
+import { getCategories } from '../../services/category.service';
+import type { Category } from '../../types';
+import { useAuthStore } from '../../store/authStore';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
 
 type TypeFilter = 'all' | 'income' | 'expense';
 type DateFilter = 'all' | 'today' | 'month' | 'custom';
@@ -360,7 +359,7 @@ export default function Transacciones() {
   );
 
   return (
-    <SidebarLayout active="transacciones">
+    <>
       <View className="flex-1">
         <View className="bg-[#0f172a] pt-16 pb-24 px-6 rounded-b-[32px] md:pt-14 md:pb-20 shadow-sm">
           <View className="flex-row items-center justify-between">
@@ -419,7 +418,7 @@ export default function Transacciones() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -430,6 +429,6 @@ export default function Transacciones() {
         transactionId={formTxId}
         onSaveSuccess={loadTransactions}
       />
-    </SidebarLayout>
+    </>
   );
 }

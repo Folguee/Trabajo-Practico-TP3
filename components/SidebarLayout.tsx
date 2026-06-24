@@ -16,33 +16,23 @@ const sidebarTabs: Array<{ key: TabKey; label: string; icon: typeof Home; route:
 type SidebarLayoutProps = {
   active: TabKey;
   children: React.ReactNode;
-  onNavigate?: (route: string) => void;
-  onLogout?: () => void | Promise<void>;
 };
 
 export default function SidebarLayout({
   active,
   children,
-  onNavigate,
-  onLogout,
 }: SidebarLayoutProps) {
   const { theme, toggleTheme } = useThemeStore();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
   const handleNavigate = (route: string) => {
-    if (onNavigate) {
-      onNavigate(route);
-      return;
-    }
-    router.push(route as any);
+    // replace (no push) para que cambiar de pestaña no apile historial
+    // y el layout/nav compartido permanezca montado.
+    router.replace(route as any);
   };
 
   const handleLogout = async () => {
-    if (onLogout) {
-      await onLogout();
-      return;
-    }
     try {
       await logout();
     } finally {

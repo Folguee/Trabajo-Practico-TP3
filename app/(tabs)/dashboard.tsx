@@ -7,8 +7,8 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getTransactions, Transaction, deleteTransaction } from '../services/transaction.service';
-import { getCategoryConfig } from '../constants/transactions';
+import { getTransactions, Transaction, deleteTransaction } from '../../services/transaction.service';
+import { getCategoryConfig } from '../../constants/transactions';
 import {
   Plus,
   Wallet,
@@ -16,13 +16,12 @@ import {
   ArrowDownLeft,
   ChevronRight,
 } from 'lucide-react-native';
-import TransactionFormSheet from '../components/TransactionFormSheet';
-import TransactionDetailSheet from '../components/TransactionDetailSheet';
-import SidebarLayout from '../components/SidebarLayout';
-import { formatCurrency } from '../utils/money';
-import { formatDisplayDate } from '../utils/date';
-import { useAuthStore } from '../store/authStore';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
+import TransactionFormSheet from '../../components/TransactionFormSheet';
+import TransactionDetailSheet from '../../components/TransactionDetailSheet';
+import { formatCurrency } from '../../utils/money';
+import { formatDisplayDate } from '../../utils/date';
+import { useAuthStore } from '../../store/authStore';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
 
 export default function Dashboard() {
   const currentUser = useAuthStore((state) => state.user);
@@ -108,7 +107,9 @@ export default function Dashboard() {
   const hasTransactions = transactions.length > 0;
 
   const handleNavigate = useCallback((route: string) => {
-    router.push(route as any);
+    // replace (no push) para no apilar pestañas sobre la pestaña actual
+    // y mantener el nav compartido montado.
+    router.replace(route as any);
   }, []);
 
   const renderEmptyState = () => (
@@ -187,7 +188,7 @@ export default function Dashboard() {
   );
 
   return (
-    <SidebarLayout active="dashboard">
+    <>
       <View className="flex-1 bg-slate-50 dark:bg-slate-950">
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <View className="bg-[#0f172a] pt-16 pb-28 px-6 rounded-b-[32px] md:pt-14 md:pb-24 shadow-sm">
@@ -303,7 +304,7 @@ export default function Dashboard() {
         }}
         onExport={(id) => {
           setIsDetailOpen(false);
-          router.push({ pathname: '/exportar', params: { transactionId: id } });
+          router.replace({ pathname: '/exportar', params: { transactionId: id } });
         }}
         onDelete={handleDeleteSelected}
       />
@@ -315,6 +316,6 @@ export default function Dashboard() {
         onSaveSuccess={loadTransactions}
       />
       </View>
-    </SidebarLayout>
+    </>
   );
 }

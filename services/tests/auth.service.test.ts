@@ -66,9 +66,6 @@ describe('Auth Service - registro', () => {
     const user = await register(name, email, password, phone);
 
     /* esto chequea que la función de registro llame a Firebase Auth y actualice el perfil */
-    // Log del usuario creado por el flujo de registro
-    console.log('\n[TEST REGISTER] Usuario creado por register():', JSON.stringify(user, null, 2));
-
     expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
     expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(expect.any(Object), email, password);
     expect(updateProfile).toHaveBeenCalledTimes(1);
@@ -84,9 +81,6 @@ describe('Auth Service - registro', () => {
 
     /* este test usa mocks: no se guarda en Firestore real, solo verifica el payload */
     await setDoc(doc(db, 'users', user.uid), firestorePayload);
-
-    // Log del objeto enviado a Firestore
-    console.log('\n[TEST FIRESTORE] Objeto guardado en Firestore por el test:', JSON.stringify(firestorePayload, null, 2));
 
     expect(doc).toHaveBeenCalledWith(db, 'users', user.uid);
     expect(setDoc).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({

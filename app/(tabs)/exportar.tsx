@@ -14,18 +14,17 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { Download, CalendarDays } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
-import SidebarLayout from '../components/SidebarLayout';
-import { useSafeFocusEffect } from '../utils/useSafeFocusEffect';
-import { getTransactions, Transaction } from '../services/transaction.service';
-import { generateAndDownloadCSV } from '../services/export.service';
+import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { getTransactions, Transaction } from '../../services/transaction.service';
+import { generateAndDownloadCSV } from '../../services/export.service';
 import {
   endOfDay,
   formatDateInput,
   formatDisplayDate,
   parseDateInput,
   startOfDay,
-} from '../utils/date';
-import { formatCurrency } from '../utils/money';
+} from '../../utils/date';
+import { formatCurrency } from '../../utils/money';
 
 type DateTarget = 'start' | 'end' | null;
 
@@ -204,7 +203,7 @@ export default function Exportar() {
   );
 
   return (
-    <SidebarLayout active="exportar">
+    <>
       <ScrollView className="flex-1 bg-slate-50 dark:bg-slate-950">
         <View className="bg-[#0f172a] pt-16 pb-24 px-6 rounded-b-[32px]">
           <Text className="text-white text-3xl font-extrabold">Exportar</Text>
@@ -259,6 +258,6 @@ export default function Exportar() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SidebarLayout>
+    </>
   );
 }

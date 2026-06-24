@@ -12,18 +12,22 @@ INDEX (app/index.tsx)          ← Pantalla de inicio / landing
   ├─ [Registrarme] ────> REGISTER (app/register.tsx)
   └─ [X] ──────────────> Cierra la app
 
-LOGIN / REGISTER ──> DASHBOARD (app/dashboard.tsx)
+LOGIN / REGISTER ──> DASHBOARD (app/(tabs)/dashboard.tsx)
                         │
-               ┌────────┴──────────┐
-               │   SidebarLayout    │ (componente envolvente)
-               ├─ Dashboard
-               ├─ Transacciones
-               ├─ Stats
-               └─ Perfil + Cerrar Sesión
+               ┌────────┴──────────────────────────┐
+               │  app/(tabs)/_layout.tsx            │
+               │  Renderiza SidebarLayout UNA vez   │
+               │  alrededor de <Slot/> → el nav     │
+               │  (sidebar/BottomNav) queda FIJO    │
+               ├─ Dashboard      (app/(tabs)/dashboard.tsx)
+               ├─ Transacciones  (app/(tabs)/transacciones.tsx)
+               ├─ Stats          (app/(tabs)/stats.tsx)
+               ├─ Exportar       (app/(tabs)/exportar.tsx)
+               └─ Perfil + Cerrar Sesión (app/(tabs)/perfil.tsx)
 
 DASHBOARD ──> Transaction Form (app/transaction-form.tsx)
            ──> Transaction Detail (app/transaction-detail.tsx)
-           ──> Exportar (app/exportar.tsx)
+           ──> Exportar (app/(tabs)/exportar.tsx)
 TRANSACCIONES ──> Transaction Detail ──> Transaction Form / Exportar
 STATS ──> (todo interno, scroll + gráficos)
 PERFIL ──> (solo datos del usuario)
@@ -217,7 +221,7 @@ z.object({
 
 ---
 
-## 5. `app/dashboard.tsx` — Dashboard Principal
+## 5. `app/(tabs)/dashboard.tsx` — Dashboard Principal
 
 ### ¿Qué hace?
 Pantalla principal post-login. Muestra:
@@ -225,7 +229,7 @@ Pantalla principal post-login. Muestra:
 - **Acciones rápidas**: botón para registrar nuevo movimiento
 - **Transacciones recientes** (últimas 3)
 - **Estado vacío** si no hay transacciones
-- Envuelto en `<SidebarLayout>` (sidebar con navegación)
+- La navegación (sidebar + BottomNav) la provee el layout compartido `app/(tabs)/_layout.tsx`; la pantalla ya **no** se envuelve en `<SidebarLayout>` por sí misma.
 
 ### Imports clave
 | Import | Tipo | ¿Para qué? |
@@ -233,7 +237,6 @@ Pantalla principal post-login. Muestra:
 | `useFocusEffect` de `expo-router` | Librería | Ejecuta código cada vez que la pantalla recibe foco (vuelve de otra pantalla) |
 | `getTransactions` de `transaction.service` | Propia | Obtiene todas las transacciones del usuario desde Firestore |
 | `getCategoryConfig` de `constants/transactions` | Propia | Devuelve icono y colores según categoría |
-| `SidebarLayout` | Propia | Layout con sidebar de navegación |
 | `useMemo` de React | Librería | Memoriza cálculos costosos (solo se recalcula si cambian `transactions`) |
 
 ### Estado local
@@ -269,7 +272,7 @@ useFocusEffect → loadTransactions()
 
 ---
 
-## 6. `app/transacciones.tsx` — Lista de Transacciones
+## 6. `app/(tabs)/transacciones.tsx` — Lista de Transacciones
 
 ### ¿Qué hace?
 Pantalla con **lista completa** de movimientos con filtros:
@@ -316,7 +319,7 @@ Es el encabezado del `FlatList`. Contiene:
 
 ---
 
-## 7. `app/stats.tsx` — Estadísticas y Presupuestos
+## 7. `app/(tabs)/stats.tsx` — Estadísticas y Presupuestos
 
 ### ¿Qué hace?
 Pantalla de reportes con:
@@ -367,7 +370,7 @@ data = [
 
 ---
 
-## 8. `app/perfil.tsx` — Perfil del Usuario
+## 8. `app/(tabs)/perfil.tsx` — Perfil del Usuario
 
 ### ¿Qué hace?
 Muestra datos del usuario autenticado:
@@ -381,7 +384,6 @@ Muestra datos del usuario autenticado:
 | Import | Tipo | ¿Para qué? |
 |--------|------|------------|
 | `useAuthStore` | Propia | Obtiene el usuario actual del store global |
-| `SidebarLayout` | Propia | Layout con sidebar |
 
 ### Datos derivados
 ```typescript
@@ -530,7 +532,7 @@ const otherParticipants = sharedFriends.filter(
 
 ---
 
-## 11. `app/exportar.tsx` — Exportar CSV
+## 11. `app/(tabs)/exportar.tsx` — Exportar CSV
 
 ### ¿Qué hace?
 Pantalla para exportar movimientos a CSV:
@@ -558,12 +560,20 @@ Pantalla para exportar movimientos a CSV:
 ## 12. `components/SidebarLayout.tsx` — Sidebar de Navegación
 
 ### ¿Qué hace?
-Layout envolvente que provee:
-- **Sidebar izquierdo** con:
-  - Enlaces: Dashboard, Transacciones, Stats, Perfil
-  - Modo oscuro/claro
+Layout envolvente que provee la navegación principal. **Se renderiza una sola
+vez** desde `app/(tabs)/_layout.tsx` alrededor de un `<Slot/>`, por lo que el
+nav permanece montado y fijo al cambiar de pantalla (antes cada pantalla
+montaba su propio `SidebarLayout`, lo que hacía que el nav parpadeara).
+
+- **Desktop/tablet** (ancho ≥ 768): **sidebar izquierdo** con:
+  - Enlaces: Dashboard, Transacciones, Stats, Exportar, Perfil
+  - Modo oscuro/claro (`toggleTheme`)
   - **Cerrar Sesión** → llama a `logout()` → navega a `/` (pantalla principal)
-- **Área de contenido** a la derecha (fondo con imagen + overlay)
+- **Mobile** (ancho < 768): renderiza `BottomNav` (barra inferior fija).
+- **Área de contenido**: el `<Slot/>` con la pantalla activa.
+
+La navegación entre pestañas usa `router.replace` (no `push`) para no apilar
+historial y mantener el layout/nav montado.
 
 ### Imports clave
 | Import | Tipo | ¿Para qué? |
@@ -576,7 +586,7 @@ Layout envolvente que provee:
 ### Props
 ```typescript
 type Props = {
-  active: 'dashboard' | 'transacciones' | 'stats' | 'perfil';
+  active: 'dashboard' | 'transacciones' | 'stats' | 'exportar' | 'perfil';
   children: React.ReactNode;
 };
 ```
@@ -705,9 +715,16 @@ interface AuthState {
 type Theme = 'light' | 'dark';
 interface ThemeState {
   theme: Theme;
-  toggleTheme: () => void;     // Alterna entre light/dark
+  setTheme: (theme: Theme) => void;  // Fija el tema explícitamente
+  toggleTheme: () => void;           // Alterna entre light/dark
 }
 ```
+- **Persiste** el tema en AsyncStorage (`persist` middleware), igual que
+  `budgetStore`. Al reiniciar la app se conserva la elección del usuario.
+- Cada cambio llama a `colorScheme.set(theme)` de **NativeWind** para que las
+  variantes `dark:` se activen de verdad en iOS/Android/web (antes sólo
+  cambiaba el ícono pero la apariencia no se aplicaba). En `app/_layout.tsx`
+  un `useEffect([theme])` re-aplica el `colorScheme` y se ajusta el fondo raíz.
 
 ### `budgetStore.ts`
 ```typescript
