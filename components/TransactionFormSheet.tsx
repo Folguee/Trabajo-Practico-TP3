@@ -801,7 +801,7 @@ export default function TransactionFormSheet({
                           </Text>
                         </View>
                       ) : (
-                        <Image source={{ uri: selectedImageUri }} className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800" />
+                        <Image source={{ uri: selectedImageUri }} resizeMode="contain" className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800" />
                       )}
                       
                       {(type === 'expense' || type === 'shared') && (

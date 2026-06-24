@@ -192,7 +192,8 @@ export default function TransactionDetailSheet({
                         </Text>
                         <Image
                           source={{ uri: transaction.imageUrl }}
-                          className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800"
+                          resizeMode="contain"
+                          className="w-full h-40 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800"
                         />
                       </View>
                     )}
