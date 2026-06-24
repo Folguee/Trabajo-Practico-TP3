@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { deleteTransaction, Transaction } from '../../services/transaction.service';
+import { Transaction } from '../../services/transaction.service';
 import {
   Plus,
   Wallet,
@@ -27,6 +27,7 @@ export default function Dashboard() {
     transactions,
     isLoading,
     loadTransactions,
+    removeTransaction,
   } = useTransactions();
 
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
@@ -56,10 +57,9 @@ export default function Dashboard() {
 
     try {
       setIsDeleting(true);
-      await deleteTransaction(selectedTx.id);
+      await removeTransaction(selectedTx.id);
       setIsDetailOpen(false);
       setSelectedTx(null);
-      loadTransactions();
     } catch (error) {
       Alert.alert('Error al eliminar', `${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {

@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
-import { getTransactions, Transaction } from '../services/transaction.service';
+import {
+  deleteTransaction,
+  getTransactions,
+  Transaction,
+} from '../services/transaction.service';
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -11,11 +14,6 @@ export function useTransactions() {
     try {
       const data = await getTransactions();
       setTransactions(data);
-    } catch (error) {
-      Alert.alert(
-        'Error de conexion',
-        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
-      );
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -27,12 +25,21 @@ export function useTransactions() {
     loadTransactions();
   }, [loadTransactions]);
 
+  const removeTransaction = useCallback(
+    async (id: string) => {
+      await deleteTransaction(id);
+      await loadTransactions();
+    },
+    [loadTransactions]
+  );
+
   return {
     transactions,
     isLoading,
     isRefreshing,
     loadTransactions,
     handleRefresh,
+    removeTransaction,
     setTransactions,
   };
 }

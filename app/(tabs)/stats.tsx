@@ -21,11 +21,7 @@ import {
 import { PieChart as ChartKitPieChart } from 'react-native-chart-kit';
 import TransactionDetailSheet from '../../components/TransactionDetailSheet';
 import TransactionFormSheet from '../../components/TransactionFormSheet';
-import {
-  getTransactions,
-  Transaction,
-  deleteTransaction,
-} from '../../services/transaction.service';
+import { Transaction } from '../../services/transaction.service';
 import { getCategoryConfig } from '../../constants/transactions';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useAuthStore } from '../../store/authStore';
@@ -41,12 +37,18 @@ import { confirmDeleteTransaction } from '../../utils/confirm';
 import { getCategories } from '../../services/category.service';
 import type { Category } from '../../types';
 import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
+import { useTransactions } from '../../hooks/useTransactions';
 
 export default function StatsScreen() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    transactions,
+    isLoading,
+    isRefreshing,
+    loadTransactions,
+    handleRefresh,
+    removeTransaction,
+  } = useTransactions();
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
   const [budgetError, setBudgetError] = useState('');
@@ -59,29 +61,22 @@ export default function StatsScreen() {
   const currentUser = useAuthStore((state) => state.user);
   const { theme } = useThemeStore();
 
-  const loadTransactions = useCallback(async () => {
+  const loadCategories = useCallback(async () => {
     try {
-      const [loadedTransactions, loadedCategories] = await Promise.all([
-        getTransactions(),
-        getCategories(),
-      ]);
-      setTransactions(loadedTransactions);
-      setCategories(loadedCategories);
+      setCategories(await getCategories());
     } catch (error) {
       Alert.alert(
         'Error de conexion',
         error instanceof Error ? error.message : 'No se pudieron cargar las estadisticas.'
       );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
   }, []);
 
   useSafeFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [loadTransactions])
+      loadCategories();
+    }, [loadCategories, loadTransactions])
   );
 
   const stats = useMemo(() => {
@@ -97,12 +92,6 @@ export default function StatsScreen() {
     ...stats.expensesByCategory.map(([, amount]) => amount),
     1
   );
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadTransactions();
-  };
-
   const handleSetBudget = (category: string) => {
     const validation = validateMoneyInput(budgetInput);
     if (!validation.valid) {
@@ -131,10 +120,9 @@ export default function StatsScreen() {
 
     try {
       setIsDeleting(true);
-      await deleteTransaction(selectedTx.id);
+      await removeTransaction(selectedTx.id);
       setIsDetailOpen(false);
       setSelectedTx(null);
-      loadTransactions();
     } catch (error) {
       Alert.alert(
         'Error al eliminar',
@@ -334,9 +322,8 @@ export default function StatsScreen() {
                         <View className="mt-2">
                           <View className="flex-row items-center gap-2">
                             <TextInput
-                              className={`flex-1 bg-slate-50 dark:bg-[#1b2a40] border rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 text-base ${
-                                budgetError ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700'
-                              }`}
+                              className={`flex-1 bg-slate-50 dark:bg-[#1b2a40] border rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 text-base ${budgetError ? 'border-rose-400' : 'border-slate-200 dark:border-slate-700'
+                                }`}
                               placeholder="Monto límite"
                               placeholderTextColor="#94a3b8"
                               keyboardType="decimal-pad"
@@ -400,7 +387,7 @@ export default function StatsScreen() {
                 stats.expensesByCategory.map(([categoryName, amount]) => {
                   const category = getCategoryConfig(
                     categories.find((entry) => entry.name === categoryName) ||
-                      categoryName
+                    categoryName
                   );
                   const Icon = category.icon;
                   const widthPercent = `${Math.max((amount / maxCategoryExpense) * 100, 8)}%` as `${number}%`;

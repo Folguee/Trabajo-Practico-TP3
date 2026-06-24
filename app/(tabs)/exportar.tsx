@@ -15,7 +15,7 @@ import DateTimePicker, {
 import { Download, CalendarDays } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeFocusEffect } from '../../utils/useSafeFocusEffect';
-import { getTransactions, Transaction } from '../../services/transaction.service';
+import { Transaction } from '../../services/transaction.service';
 import { generateAndDownloadCSV } from '../../services/export.service';
 import {
   endOfDay,
@@ -25,12 +25,12 @@ import {
   startOfDay,
 } from '../../utils/date';
 import { formatCurrency } from '../../utils/money';
+import { useTransactions } from '../../hooks/useTransactions';
 
 type DateTarget = 'start' | 'end' | null;
 
 export default function Exportar() {
   const { transactionId } = useLocalSearchParams();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [startDate, setStartDate] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
@@ -38,21 +38,8 @@ export default function Exportar() {
   const [startInput, setStartInput] = useState(formatDisplayDate(startDate));
   const [endInput, setEndInput] = useState(formatDisplayDate(endDate));
   const [dateTarget, setDateTarget] = useState<DateTarget>(null);
-  const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-
-  const loadTransactions = useCallback(async () => {
-    try {
-      setTransactions(await getTransactions());
-    } catch (error) {
-      Alert.alert(
-        'Error de conexion',
-        error instanceof Error ? error.message : 'No se pudieron cargar los movimientos.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { transactions, isLoading: loading, loadTransactions } = useTransactions();
 
   useSafeFocusEffect(
     useCallback(() => {
